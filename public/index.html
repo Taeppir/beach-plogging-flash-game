@@ -6,7 +6,7 @@
 <title>30초 해변 플로깅</title>
 <meta name="description" content="실제 국가해안쓰레기모니터링통계로 만든 30초 미니게임. 쓰레기를 주우며 우리 바다 데이터를 만나보세요.">
 <meta property="og:title" content="30초 해변 플로깅 🏖️">
-<meta property="og:description" content="플라스틱이 해안쓰레기의 87.4%라는 걸 알고 있었나요? 실제 공공데이터로 만든 30초 게임, 지금 도전!">
+<meta property="og:description" content="오늘의 플로깅 랭킹 1위는? 실제 해안쓰레기 데이터로 겨루는 30초 온라인 플로깅 챌린지, 지금 도전하세요!">
 <meta property="og:type" content="website">
 <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
 <style>
@@ -134,6 +134,17 @@
   /* 결과 패널 — PC·모바일 동일 단일 컬럼(여백 촘촘). 넓은 화면은 .wrap max-width로 좌우 여백만 늘어남 */
   .result-done{font-size:12px;color:var(--muted);font-weight:700}
   .result-panel{padding:22px 18px;word-break:keep-all}
+  /* 공유 카드 미리보기 모달 (이미지 공유 미지원 환경: PC·인앱브라우저 등) */
+  .shareModal{position:fixed;inset:0;background:rgba(16,40,52,.72);display:flex;align-items:center;justify-content:center;padding:20px;z-index:100;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .shareModal-inner{background:#fff;border-radius:24px;padding:18px;max-width:400px;width:100%;box-shadow:var(--sh);position:relative;text-align:center;margin:auto}
+  .shareModal-close{position:absolute;top:10px;right:10px;width:34px;height:34px;border:none;background:#f0f6f9;border-radius:50%;font-size:15px;cursor:pointer;color:#4a6b7a;line-height:1}
+  .shareModal-title{font-size:15px;font-weight:800;margin-bottom:12px;color:var(--ink)}
+  .shareModal-img{width:100%;border-radius:16px;display:block;box-shadow:var(--sh-sm);background:#eaf4fa;aspect-ratio:1/1}
+  .shareModal-btns{display:flex;gap:9px;margin-top:14px}
+  .shareModal-btn{flex:1;font-family:var(--sans);font-size:14px;font-weight:800;padding:13px;border-radius:14px;cursor:pointer;border:none;min-height:44px;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:4px}
+  .shareModal-btn.dl{background:var(--sky);color:#fff}
+  .shareModal-btn.cp{background:#eef5f8;color:#4a6b7a}
+  .shareModal-hint{font-size:11px;color:var(--faint);margin-top:11px;line-height:1.5}
 </style>
 </head>
 <body>
@@ -220,6 +231,20 @@
   </div>
 
   <footer><b>🗑️ 점수 규칙</b> — 점수는 그 쓰레기의 <b>실제 발생 확률이 낮을수록 높아요</b>(통계 기반). 바다 위로 떠내려오는 쓰레기를 잡으면 ×3 보너스. 🦀🐚🐢 바다 생물을 넣으면 <b>−80점 감점</b>과 콤보 초기화. <br>*데이터 출처: 해양환경정보포털(MEIS) 국가해안쓰레기 모니터링통계/footer>
+</div>
+
+<!-- 공유 카드 미리보기 모달 — 이미지 첨부 공유가 안 되는 환경(PC·카톡 인앱브라우저 등)에서 표시 -->
+<div class="shareModal" id="shareModal" style="display:none">
+  <div class="shareModal-inner">
+    <button class="shareModal-close" id="shareClose" aria-label="닫기">✕</button>
+    <div class="shareModal-title">🏖️ 내 등급 카드</div>
+    <img class="shareModal-img" id="shareImg" alt="등급 카드">
+    <div class="shareModal-btns">
+      <a class="shareModal-btn dl" id="shareDownload" download="beach-plogging.png">⬇️ 이미지 저장</a>
+      <button class="shareModal-btn cp" id="shareCopyLink" type="button">🔗 링크 복사</button>
+    </div>
+    <div class="shareModal-hint">이미지를 저장해 카톡·인스타에 올리거나,<br>링크를 복사해 친구에게 도전장을 보내보세요!</div>
+  </div>
 </div>
 
 <script>
@@ -547,27 +572,150 @@ document.getElementById('shareBtn').addEventListener('click',async function(){
   if(ok){this.textContent='등록됨 ✓';}
   else{this.disabled=false;this.textContent='↻ 다시 시도';} // 네트워크 실패 시 복구
 });
-// 친구에게 공유 — 모바일: 공유 시트, PC: 링크 복사. 실제 완료 시에만 집계
+// ===== 공유용 개인 등급 카드 이미지 =====
+// 점수 → 등급(캐릭터). 결과 화면(showResult)과 동일한 기준을 공유용으로 별도 산출.
+function gradeForScore(s){
+  if(s>=2000)return{n:4,emoji:'🌟',name:'바다지킴이 마스터'};
+  if(s>=900) return{n:3,emoji:'💪',name:'열혈 플로거'};
+  if(s>=350) return{n:2,emoji:'🙂',name:'새내기 플로거'};
+  return       {n:1,emoji:'🌱',name:'플로깅 입문'};
+}
+const GRADE_IMG={1:'images/grade-1.png',2:'images/grade-2.png',3:'images/grade-3.png',4:'images/grade-4.png'};
+const GRADE_COLOR={1:'#3fb98f',2:'#2ba7c7',3:'#f19a3c',4:'#e0a11a'};
+const CARD_FONT="'Pretendard',system-ui,'Apple SD Gothic Neo','Malgun Gothic',sans-serif";
+// 상대경로(동일 Pages 도메인) → canvas가 tainted되지 않아 toBlob() 가능. 3초 타임아웃.
+function loadCardImg(src,ms){
+  return new Promise((resolve,reject)=>{
+    const img=new Image();let done=false;
+    const t=setTimeout(()=>{if(!done){done=true;reject(new Error('timeout'));}},ms);
+    img.onload=()=>{if(!done){done=true;clearTimeout(t);resolve(img);}};
+    img.onerror=()=>{if(!done){done=true;clearTimeout(t);reject(new Error('load error'));}};
+    img.src=src;
+  });
+}
+function cardRoundRect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+// 등급 카드(1080×1080 PNG Blob) 생성. 이미지 로딩 실패/타임아웃 시 이모지 fallback으로 그려 공유가 멈추지 않게.
+async function makeShareCard(g,sc){
+  const W=1080,H=1080;
+  const cv=document.createElement('canvas');cv.width=W;cv.height=H;
+  const ctx=cv.getContext('2d');
+  // 배경 — 게임 스테이지와 동일한 하늘/바다/모래 그라디언트
+  const bg=ctx.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,'#bfe9f5');bg.addColorStop(0.28,'#a6dcee');
+  bg.addColorStop(0.28,'#5cc0d8');bg.addColorStop(0.52,'#2f97b8');
+  bg.addColorStop(0.52,'#f0dfb2');bg.addColorStop(1,'#f7ecc9');
+  ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+  // 햇살 (우상단, 은은하게)
+  const sun=ctx.createRadialGradient(950,140,8,950,140,90);
+  sun.addColorStop(0,'rgba(255,231,140,.95)');sun.addColorStop(1,'rgba(255,211,92,0)');
+  ctx.fillStyle=sun;ctx.beginPath();ctx.arc(950,140,90,0,Math.PI*2);ctx.fill();
+  ctx.textAlign='center';
+  // 제목
+  ctx.save();
+  ctx.shadowColor='rgba(20,60,80,.28)';ctx.shadowBlur=14;ctx.shadowOffsetY=3;
+  ctx.fillStyle='#fff';ctx.font='800 60px '+CARD_FONT;
+  ctx.fillText('🏖️ 30초 해변 플로깅',W/2,152);
+  ctx.restore();
+  ctx.fillStyle='rgba(20,55,71,.72)';ctx.font='600 26px '+CARD_FONT;
+  ctx.fillText('쓰레기를 주워 우리 바다를 지켜요',W/2,198);
+  // 캐릭터 (동일 도메인 PNG) — 실패 시 이모지로 대체
+  const bx=90,by=214,bw=900,bh=496;
+  let img=null;
+  try{img=await loadCardImg(GRADE_IMG[g.n],3000);}catch(e){img=null;}
+  if(img){
+    const s=Math.min(bw/img.width,bh/img.height);
+    const w=img.width*s,h=img.height*s;
+    ctx.drawImage(img,bx+(bw-w)/2,by+(bh-h),w,h); // 바닥 정렬(발이 모래에 닿게)
+  }else{
+    ctx.save();ctx.textBaseline='middle';ctx.font='300px '+CARD_FONT;
+    ctx.fillText(g.emoji,W/2,by+bh/2);ctx.restore();
+  }
+  // 등급 pill
+  ctx.font='800 40px '+CARD_FONT;
+  const pillText=g.emoji+' '+g.name;
+  const tw=ctx.measureText(pillText).width;
+  const ph=78,pw=tw+92,px=(W-pw)/2,py=726;
+  ctx.save();
+  ctx.shadowColor='rgba(20,60,80,.28)';ctx.shadowBlur=22;ctx.shadowOffsetY=8;
+  ctx.fillStyle=GRADE_COLOR[g.n];cardRoundRect(ctx,px,py,pw,ph,ph/2);ctx.fill();
+  ctx.restore();
+  ctx.fillStyle='#fff';ctx.textBaseline='middle';
+  ctx.fillText(pillText,W/2,py+ph/2+3);
+  ctx.textBaseline='alphabetic';
+  // 점수
+  ctx.fillStyle='rgba(20,70,90,.72)';ctx.font='700 24px '+CARD_FONT;
+  ctx.fillText('내가 주운 쓰레기 점수',W/2,846);
+  ctx.fillStyle='#0f4a5e';ctx.font='800 84px '+CARD_FONT;
+  ctx.fillText(sc.toLocaleString()+'점',W/2,924);
+  // 푸터 (데이터 출처)
+  ctx.fillStyle='#2a5566';ctx.font='700 26px '+CARD_FONT;
+  ctx.fillText('🌊 해안쓰레기의 87%는 플라스틱',W/2,996);
+  ctx.fillStyle='rgba(42,85,102,.78)';ctx.font='600 21px '+CARD_FONT;
+  ctx.fillText('실제 공공데이터 · MEIS',W/2,1034);
+  return await new Promise((res,rej)=>{cv.toBlob(b=>b?res(b):rej(new Error('toBlob null')),'image/png');});
+}
+// 이미지 공유 미지원 환경: 카드 미리보기 모달(저장·링크복사)
+let shareObjURL=null;
+function openShareModal(blob,text,url){
+  const modal=document.getElementById('shareModal');
+  const img=document.getElementById('shareImg'),dl=document.getElementById('shareDownload'),cp=document.getElementById('shareCopyLink');
+  if(shareObjURL)URL.revokeObjectURL(shareObjURL);
+  shareObjURL=URL.createObjectURL(blob);
+  img.src=shareObjURL;dl.href=shareObjURL;dl.download='beach-plogging-'+score+'.png';
+  dl.onclick=()=>{track('share','image');}; // 카드 저장 = 이미지 공유로 집계
+  cp.onclick=async()=>{
+    const ok=await copyText(text+'\n'+url);
+    cp.textContent=ok?'✓ 복사됨':'복사 실패';track('share','copy');
+    setTimeout(()=>{cp.textContent='🔗 링크 복사';},1800);
+  };
+  modal.style.display='flex';
+}
+function closeShareModal(){document.getElementById('shareModal').style.display='none';}
+document.getElementById('shareClose').addEventListener('click',closeShareModal);
+document.getElementById('shareModal').addEventListener('click',e=>{if(e.target.id==='shareModal')closeShareModal();});
+// 클립보드 복사 (구형 브라우저 execCommand 폴백 포함)
+async function copyText(s){
+  try{await navigator.clipboard.writeText(s);return true;}catch(e){}
+  try{const ta=document.createElement('textarea');ta.value=s;ta.style.position='fixed';ta.style.opacity='0';
+    document.body.appendChild(ta);ta.select();const ok=document.execCommand('copy');document.body.removeChild(ta);return ok;}catch(e){return false;}
+}
+// 카드 생성이 완전히 실패할 때의 최종 폴백 — 기존 텍스트/링크 공유
+async function shareTextFallback(text,url,btn){
+  const done=(label,kind)=>{track('share',kind);btn.textContent=label;setTimeout(()=>{btn.disabled=false;btn.textContent='📤 친구에게 도전장 보내기';},2200);};
+  if(navigator.share){
+    try{await navigator.share({title:'30초 해변 플로깅',text,url});done('📤 공유 완료!','native');}
+    catch(e){btn.disabled=false;btn.textContent='📤 친구에게 도전장 보내기';}
+    return;
+  }
+  const ok=await copyText(text+'\n'+url);
+  if(ok)done('🔗 링크 복사됨 ✓','copy');
+  else{btn.disabled=false;btn.textContent='복사 실패 — 주소창에서 복사해주세요';}
+}
+// 친구에게 공유 — 개인 등급 카드 이미지 공유. 실제 완료 시에만 집계
 document.getElementById('inviteBtn').addEventListener('click',async function(){
   const btn=this;
   const url=location.origin+location.pathname;
-  const text=`🏖️ 30초 해변 플로깅에서 ${score.toLocaleString()}점 기록! 너도 도전해볼래?\n실제 해양 쓰레기 데이터로 만든 게임이야.`;
-  const done=(label,kind)=>{track('share',kind);btn.textContent=label;setTimeout(()=>{btn.textContent='📤 친구에게 도전장 보내기';},2200);};
-  if(navigator.share){
-    try{await navigator.share({title:'30초 해변 플로깅',text,url});done('📤 공유 완료!','native');}
-    catch(e){/* 사용자가 공유 시트를 닫음 — 집계 안 함 */}
+  const g=gradeForScore(score);
+  const text=`🏖️ 30초 해변 플로깅에서 '${g.name}' 등급을 달성했어요! 우리 해변에 쓰레기가 얼마나 있는지 확인하고, 플로깅에 함께 동참해보세요 🌊`;
+  btn.disabled=true;btn.textContent='🎴 카드 만드는 중…';
+  // 1) 등급 카드 생성 (이미지 로딩 실패해도 이모지 카드로 생성됨)
+  let blob=null;
+  try{blob=await makeShareCard(g,score);}catch(e){blob=null;}
+  // 카드 자체가 실패 → 기존 텍스트/링크 공유로 폴백
+  if(!blob){btn.textContent='📤 친구에게 도전장 보내기';await shareTextFallback(text,url,btn);return;}
+  const file=new File([blob],'beach-plogging.png',{type:'image/png'});
+  // 2) 모바일: 이미지 파일 첨부 공유 시트 (카톡·인스타·스토리·저장 등)
+  if(navigator.canShare&&navigator.canShare({files:[file]})){
+    try{
+      await navigator.share({files:[file],text:text+'\n'+url,title:'30초 해변 플로깅'});
+      track('share','image');
+      btn.textContent='📤 공유 완료!';setTimeout(()=>{btn.disabled=false;btn.textContent='📤 친구에게 도전장 보내기';},2200);
+    }catch(e){/* 사용자가 공유 시트를 닫음 — 집계 안 함 */btn.disabled=false;btn.textContent='📤 친구에게 도전장 보내기';}
     return;
   }
-  try{
-    await navigator.clipboard.writeText(text+'\n'+url);
-    done('🔗 링크 복사됨 ✓','copy');
-  }catch(e){
-    // 구형 브라우저 폴백
-    const ta=document.createElement('textarea');ta.value=text+'\n'+url;ta.style.position='fixed';ta.style.opacity='0';
-    document.body.appendChild(ta);ta.select();
-    try{document.execCommand('copy');done('🔗 링크 복사됨 ✓','copy');}catch(e2){btn.textContent='복사 실패 — 주소창에서 복사해주세요';}
-    document.body.removeChild(ta);
-  }
+  // 3) 이미지 공유 미지원(PC·인앱브라우저 등): 카드 미리보기 + 저장/링크복사
+  openShareModal(blob,text,url);
+  btn.disabled=false;btn.textContent='📤 친구에게 도전장 보내기';
 });
 // 1탭 인지 질문 — 세션당 1문항 랜덤 배정, 답하면 다시 안 물음
 // 수치 출처: 국가해안쓰레기모니터링통계(MEIS) 유형별·연도별 (2018~2023, 60개 조사지점)
