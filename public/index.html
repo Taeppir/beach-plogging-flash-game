@@ -240,10 +240,9 @@
     <div class="shareModal-title">🏖️ 내 등급 카드</div>
     <img class="shareModal-img" id="shareImg" alt="등급 카드">
     <div class="shareModal-btns">
-      <a class="shareModal-btn dl" id="shareDownload" download="beach-plogging.png">⬇️ 이미지 저장</a>
-      <button class="shareModal-btn cp" id="shareCopyLink" type="button">🔗 링크 복사</button>
+      <button class="shareModal-btn dl" id="shareGo" type="button">📤 결과 공유하기</button>
     </div>
-    <div class="shareModal-hint">이미지를 저장해 카톡·인스타에 올리거나,<br>링크를 복사해 친구에게 도전장을 보내보세요!</div>
+    <div class="shareModal-hint">카드 이미지와 문구·링크를 함께 공유해<br>친구에게 도전장을 보내보세요!</div>
   </div>
 </div>
 
@@ -654,19 +653,42 @@ async function makeShareCard(g,sc){
   ctx.fillText('해양환경정보포털 국가 해안 쓰레기 모니터링 통계 공공데이터',W/2,1034);
   return await new Promise((res,rej)=>{cv.toBlob(b=>b?res(b):rej(new Error('toBlob null')),'image/png');});
 }
-// 이미지 공유 미지원 환경: 카드 미리보기 모달(저장·링크복사)
+// 이미지 공유 미지원 환경: 카드 미리보기 모달(이미지 저장·링크복사)
 let shareObjURL=null;
+// 카드 이미지를 정확히 1번만 다운로드 (앵커 1개 생성→click 1회→제거). blob 재생성 없음.
+function saveCardImage(objURL,filename){
+  const a=document.createElement('a');
+  a.href=objURL;a.download=filename;a.style.display='none';
+  document.body.appendChild(a);a.click();a.remove();
+}
 function openShareModal(blob,text,url){
   const modal=document.getElementById('shareModal');
-  const img=document.getElementById('shareImg'),dl=document.getElementById('shareDownload'),cp=document.getElementById('shareCopyLink');
+  const img=document.getElementById('shareImg'),go=document.getElementById('shareGo');
+  // 앞서 만든 카드 blob 하나만 사용(미리보기·저장·공유 모두 동일 objURL). 이전 것은 해제.
   if(shareObjURL)URL.revokeObjectURL(shareObjURL);
   shareObjURL=URL.createObjectURL(blob);
-  img.src=shareObjURL;dl.href=shareObjURL;dl.download='beach-plogging-'+score+'.png';
-  dl.onclick=()=>{track('share','image');}; // 카드 저장 = 이미지 공유로 집계
-  cp.onclick=async()=>{
+  img.src=shareObjURL;
+  go.disabled=false;go.textContent='📤 결과 공유하기';go.dataset.busy='0'; // 모달 열 때 상태 초기화(재오픈 시 버튼 잠김 방지)
+  // .onclick= 할당 → openShareModal 재호출 시 핸들러가 누적되지 않고 교체됨(리스너 중복 방지)
+  go.onclick=async()=>{
+    if(go.dataset.busy==='1')return; // 한 클릭 처리 중 중복 실행(더블클릭 등) 차단
+    go.dataset.busy='1';
+    const file=new File([blob],'beach-plogging.png',{type:'image/png'});
+    // 1) 파일 공유 지원 → 이미지+문구+링크를 한 번에 전송(이미지 1개). 여기서 return → 폴백 저장 안 탐
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      try{
+        await navigator.share({files:[file],text,url,title:'30초 해변 플로깅'});
+        track('share','image');
+        go.textContent='✓ 공유 완료';
+      }catch(e){/* 사용자가 시트를 닫음(AbortError) — 집계 안 함 */}
+      go.dataset.busy='0';return;
+    }
+    // 2) 미지원(PC·인앱브라우저) → 문구+링크 복사(1회) + 카드 이미지 저장(1회, 재생성 없이 같은 blob)
     const ok=await copyText(text+'\n'+url);
-    cp.textContent=ok?'✓ 복사됨':'복사 실패';track('share','copy');
-    setTimeout(()=>{cp.textContent='🔗 링크 복사';},1800);
+    saveCardImage(shareObjURL,'beach-plogging-'+score+'.png');
+    if(ok)track('share','copy');
+    go.textContent=ok?'🔗 복사 & 이미지 저장 ✓':'이미지 저장됨';
+    setTimeout(()=>{go.textContent='📤 결과 공유하기';go.dataset.busy='0';},1800);
   };
   modal.style.display='flex';
 }
