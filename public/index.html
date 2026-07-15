@@ -6,7 +6,7 @@
 <title>30초 해변 플로깅</title>
 <meta name="description" content="실제 국가해안쓰레기모니터링통계로 만든 30초 미니게임. 쓰레기를 주우며 우리 바다 데이터를 만나보세요.">
 <meta property="og:title" content="30초 해변 플로깅 🏖️">
-<meta property="og:description" content="플라스틱이 해안쓰레기의 87%라는 걸 알고 있었나요? 실제 공공데이터로 만든 30초 게임, 지금 도전!">
+<meta property="og:description" content="플라스틱이 해안쓰레기의 87.4%라는 걸 알고 있었나요? 실제 공공데이터로 만든 30초 게임, 지금 도전!">
 <meta property="og:type" content="website">
 <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
 <style>
@@ -63,11 +63,12 @@
   .combo{position:absolute;top:52px;left:50%;transform:translateX(-50%);z-index:6;font-weight:800;color:#fff;font-size:15px;opacity:0;transition:.15s;pointer-events:none;text-shadow:0 1px 3px rgba(0,0,0,.3)}
   .combo.show{opacity:1;transform:translateX(-50%) scale(1.15)}
 
-  .overlay{position:absolute;inset:0;background:rgba(24,57,71,.3);display:flex;align-items:center;justify-content:center;padding:20px;z-index:20}
-  .panel{background:#fff;border-radius:24px;padding:24px 22px;width:100%;box-shadow:var(--sh);text-align:center}
+  .overlay{position:absolute;inset:0;background:rgba(24,57,71,.3);display:flex;align-items:center;justify-content:center;padding:20px;z-index:20;overflow-y:auto;touch-action:pan-y;-webkit-overflow-scrolling:touch}
+  .panel{background:#fff;border-radius:24px;padding:24px 22px;width:100%;box-shadow:var(--sh);text-align:center;margin:auto;word-break:keep-all}
   .panel h2{font-size:20px;font-weight:800}
-  .panel .lead{font-size:13px;color:var(--muted);margin:8px 0 18px;line-height:1.55}
-  .nickrow{display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:16px}
+  .panel .lead{font-size:13px;color:var(--muted);margin:10px 0 0;line-height:1.55}
+  .panel .lead b{color:var(--ink)}
+  .nickrow{display:flex;align-items:center;gap:8px;justify-content:center;margin:16px 0}
   .nickrow input{border:1.5px solid var(--line);border-radius:12px;padding:9px 13px;font-family:var(--sans);font-size:14px;font-weight:700;width:130px;text-align:center;outline:none}
   .nickrow input:focus{border-color:var(--sky)}
   .dice{font-family:var(--sans);font-size:17px;border:1.5px solid var(--line);background:#fff;width:40px;height:40px;border-radius:12px;cursor:pointer;transition:transform .12s}
@@ -75,12 +76,13 @@
   .bigbtn{font-family:var(--sans);font-size:17px;font-weight:800;color:#fff;background:linear-gradient(145deg,#2fb6d8,#2596b8);border:none;border-radius:18px;padding:15px 34px;cursor:pointer;box-shadow:0 8px 18px rgba(37,150,184,.35)}
   .bigbtn:active{transform:scale(.96)}
   .howto{font-size:11.5px;color:var(--faint);margin-top:14px;line-height:1.6}
-  .score-big{font-size:44px;font-weight:800;color:var(--sky);line-height:1}
-  .grade-tag{display:inline-block;font-size:13px;font-weight:800;padding:6px 16px;border-radius:999px;margin:10px 0 4px}
-  .breakdown{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin:16px 0}
-  .bd{background:#f4f9fb;border-radius:11px;padding:7px 11px;font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:5px}.bd .n{color:var(--muted);font-weight:700}
-  .special{background:#e9f5fa;border:1px solid #cfeaf2;border-radius:14px;padding:11px 13px;font-size:12.5px;color:#2596b8;line-height:1.5;margin-bottom:14px;font-weight:600}
-  .rbtns{display:flex;gap:9px}.rbtns button{flex:1;font-family:var(--sans);font-size:14px;font-weight:800;padding:13px;border-radius:14px;cursor:pointer;border:none}
+  .score-big{font-size:40px;font-weight:800;color:var(--sky);line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .grade-tag{display:inline-block;font-size:13px;font-weight:800;padding:7px 18px;border-radius:999px;margin:12px 0 0;background:var(--sky);color:#fff;box-shadow:0 4px 12px rgba(43,167,199,.28)}
+  .breakdown{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:13px 0 0}
+  .bd{background:#f4f9fb;border-radius:10px;padding:5px 9px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:4px}.bd .n{color:var(--muted);font-weight:700}
+  .special{font-size:12px;color:var(--muted);line-height:1.45;margin:11px 0 0;font-weight:600}
+  .special b{color:var(--sky)}
+  .rbtns{display:flex;gap:9px;margin-top:15px}.rbtns button{flex:1;font-family:var(--sans);font-size:14px;font-weight:800;padding:13px;border-radius:14px;cursor:pointer;border:none;min-height:44px}
   .rbtns .again{background:var(--sky);color:#fff}.rbtns .share{background:#eef5f8;color:#4a6b7a}
 
   .card{background:#fff;border-radius:22px;box-shadow:var(--sh-sm);padding:16px;margin-top:14px}
@@ -115,19 +117,23 @@
   /* v2 */
   .sndtg{margin-left:auto;font-family:var(--sans);font-size:18px;border:none;background:#fff;width:40px;height:40px;border-radius:13px;box-shadow:var(--sh-sm);cursor:pointer}
   .trash.critter{filter:drop-shadow(0 2px 3px rgba(0,0,0,.15))}
-  .myrank{background:#fff7e8;border:1px solid #f4dfb5;border-radius:14px;padding:10px 13px;font-size:13px;font-weight:700;color:#b07a1e;margin-bottom:14px;display:none}
-  .reactwrap{margin:2px 0 14px}
-  .reactwrap .rq{font-size:13px;color:#4a6b7a;font-weight:700;margin-bottom:9px;line-height:1.55}
+  .myrank{background:#f4f9fb;border:1px solid var(--line);border-radius:12px;padding:9px 12px;font-size:12.5px;font-weight:700;color:var(--muted);margin:13px 0 0;display:none}
+  .myrank b{color:var(--sky)}
+  .reactwrap{margin:0}
+  .reactwrap .rq{font-size:13px;color:#4a6b7a;font-weight:700;margin-bottom:7px;line-height:1.5}
   .reactwrap .rq b{color:#1478a0}
-  .reactrow{display:flex;gap:8px;justify-content:center}
-  .reactbtn{font-family:var(--sans);font-size:13px;font-weight:700;border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:8px 13px;cursor:pointer;color:#4a6b7a;transition:.12s}
+  .reactrow{display:flex;flex-direction:column;gap:8px}
+  .reactbtn{font-family:var(--sans);font-size:13px;font-weight:700;border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:11px 14px;cursor:pointer;color:#4a6b7a;transition:.12s;width:100%;white-space:nowrap;min-height:44px}
   .reactbtn:active{transform:scale(.94)}
   .reactbtn.sel{border-color:var(--sky);background:var(--sky-soft);color:#1478a0}
   .reactbtn:disabled{opacity:.55;cursor:default}
   .reactdone{font-size:12px;color:var(--mint);font-weight:700}
   .who .tag{font-size:10px;color:#a8bec9;font-weight:700;margin-left:2px}
-  .invite{width:100%;margin-top:9px;font-family:var(--sans);font-size:14px;font-weight:800;color:#1478a0;background:var(--sky-soft);border:1.5px solid #cfeaf2;border-radius:14px;padding:12px;cursor:pointer;transition:.12s}
+  .invite{width:100%;margin-top:11px;font-family:var(--sans);font-size:14px;font-weight:800;color:#1478a0;background:var(--sky-soft);border:1.5px solid #cfeaf2;border-radius:14px;padding:12px;cursor:pointer;transition:.12s;min-height:44px}
   .invite:active{transform:scale(.97)}
+  /* 결과 패널 — PC·모바일 동일 단일 컬럼(여백 촘촘). 넓은 화면은 .wrap max-width로 좌우 여백만 늘어남 */
+  .result-done{font-size:12px;color:var(--muted);font-weight:700}
+  .result-panel{padding:22px 18px;word-break:keep-all}
 </style>
 </head>
 <body>
@@ -157,26 +163,22 @@
 
     <div class="overlay" id="startOv">
       <div class="panel">
-        <h2>🏖️ 해변을 지켜줘!</h2>
-        <div class="lead">떠밀려온 쓰레기를 <b>끌어다 쓰레기통에</b> 넣어요.<br><b>귀한 쓰레기일수록 높은 점수</b> · 바다 위로 <b>떠내려오는 쓰레기</b>는 ×3!</div>
+        <h2>🏖️ 해변을 지켜주세요!</h2>
+        <div class="lead">떠밀려온 쓰레기를 <b>끌어다 쓰레기통에</b> 넣어요.</div>
+        <div class="lead">🌊 바다에서 떠내려오는 쓰레기는 점수 <b>3배</b>!</br>🦀🐚🐢 <b>바다 친구들</b>을 넣으면 <b>감점</b> - 쓰레기만 골라 담아요!</div>
         <div class="nickrow"><span id="nickEmo">🐚</span> <input id="nick" maxlength="10" placeholder="닉네임"><button class="dice" id="diceBtn" aria-label="새 닉네임">🎲</button></div>
         <button class="bigbtn" id="startBtn">플로깅 시작</button>
-        <div class="howto">점수는 실제 발생 확률이 낮을수록 높아요 🌊 떠내려오는 쓰레기는 ×3<br>🦀🐚🐢 <b>바다 친구를 넣으면 감점</b>이에요 — 쓰레기만 골라 담아요!</div>
       </div>
     </div>
 
     <div class="overlay" id="resultOv" style="display:none">
-      <div class="panel">
-        <div style="font-size:12px;color:var(--muted);font-weight:700">플로깅 완료!</div>
+      <div class="panel result-panel">
+        <div class="result-done">플로깅 완료!</div>
         <div class="score-big" id="rScore">0</div>
         <div class="grade-tag" id="rGrade">—</div>
         <div class="special" id="rSpecial"></div>
         <div class="breakdown" id="rBreak"></div>
         <div class="myrank" id="myRank"></div>
-        <div class="reactwrap" id="reactWrap">
-          <div class="rq"></div>
-          <div class="reactrow"></div>
-        </div>
         <div class="rbtns"><button class="again" id="againBtn">🔄 다시</button><button class="share" id="shareBtn">🏆 랭킹 등록</button></div>
         <button class="invite" id="inviteBtn">📤 친구에게 도전장 보내기</button>
       </div>
@@ -188,10 +190,18 @@
     <div class="dexrow" id="dexrow"></div>
   </div>
 
+  <div class="card" id="rqCard" style="display:none">
+    <div class="h"><span class="t">💬 우리 바다 데이터, 알고 있었나요?</span></div>
+    <div class="reactwrap" id="reactWrap">
+      <div class="rq"></div>
+      <div class="reactrow"></div>
+    </div>
+  </div>
+
   <div class="card">
     <div class="h"><span class="t">📊 해안쓰레기 인사이트 <span class="badge">실측</span></span><span class="c">MEIS</span></div>
     <div class="ins" id="ins"></div>
-    <div class="insnote"><b style="color:#4a6b7a">2018~2023년</b> 국가해안쓰레기 모니터링통계 · 개수 기준 전국 누적(6년). <b style="color:#4a6b7a">플라스틱이 87%</b>로 압도적. 막대 <b>색이 붉을수록 희귀</b>하고 게임에선 <b>고득점</b>. 정확한 값은 오른쪽 %.</div>
+    <div class="insnote"><b style="color:#4a6b7a">2018~2023년</b> 국가해안쓰레기 모니터링통계 · 개수 기준 전국 누적(6년). <br><b style="color:#4a6b7a">플라스틱 87.4%로 최다</b>. 막대 길이는 재질별 비중, 색상은 상대적 희소성을 나타냄.</div>
   </div>
 
   <div class="card">
@@ -200,16 +210,16 @@
   </div>
 
   <div class="card promo">
-    <div class="pm-t">🌊 이 게임 속 쓰레기, 전부 진짜예요</div>
-    <div class="pm-d">국가해안쓰레기 모니터링통계(MEIS)를 게임으로 만들었어요.</div>
+    <div class="pm-t">🌊 이 게임 속 쓰레기, 전부 실제 데이터</div>
+    <div class="pm-d"><b>해양환경정보포털(MEIS)의 국가해안쓰레기 모니터링통계</b> 데이터를 사용했어요. <br>진짜 데이터를 보고 싶다면 클릭!</div>
     <div class="pm-links">
-      <a class="pm-btn data" href="https://www.meis.go.kr" target="_blank" rel="noopener">📊 진짜 데이터 보기</a>
-      <a class="pm-btn svc" id="svcLink" style="display:none" target="_blank" rel="noopener">🌤️ 해안쓰레기 예보 보기</a>
+      <a class="pm-btn data" href="https://www.meis.go.kr" target="_blank" rel="noopener">📊 데이터 보기</a>
+      <!-- <a class="pm-btn svc" id="svcLink" style="display:none" target="_blank" rel="noopener">🌤️ 해안쓰레기 예보 보기</a> -->
     </div>
     <div class="pm-fb"><span>이 게임 어땠어요?</span><button class="likebtn" id="likeBtn">👍 좋아요 <b id="likeCount">0</b></button></div>
   </div>
 
-  <footer><b>🗑️ 점수 규칙</b> — 점수는 그 쓰레기의 <b>실제 발생 확률이 낮을수록 높아요</b>(통계 기반). 바다 위로 떠내려오는 쓰레기를 잡으면 ×3 보너스. 🦀🐚🐢 바다 생물을 넣으면 <b>−80점</b>과 콤보 초기화. 데이터 출처: 국가해안쓰레기 모니터링통계(MEIS).</footer>
+  <footer><b>🗑️ 점수 규칙</b> — 점수는 그 쓰레기의 <b>실제 발생 확률이 낮을수록 높아요</b>(통계 기반). 바다 위로 떠내려오는 쓰레기를 잡으면 ×3 보너스. 🦀🐚🐢 바다 생물을 넣으면 <b>−80점 감점</b>과 콤보 초기화. <br>*데이터 출처: 해양환경정보포털(MEIS) 국가해안쓰레기 모니터링통계/footer>
 </div>
 
 <script>
@@ -295,10 +305,14 @@ const API_ON = !!API_URL;
 function track(name,data){
   if(!API_ON)return;
   const body=JSON.stringify({uid,sess,name,data:data||null});
+  // text/plain은 CORS-safelisted → 프리플라이트(OPTIONS) 없이 나가 beacon이 안정적으로 전송됨
   try{
-    if(navigator.sendBeacon){navigator.sendBeacon(API_URL+'/event',new Blob([body],{type:'application/json'}));return;}
+    if(navigator.sendBeacon){
+      if(navigator.sendBeacon(API_URL+'/event',new Blob([body],{type:'text/plain;charset=UTF-8'})))return; // 큐 적재 성공 시 종료
+    }
   }catch(e){}
-  fetch(API_URL+'/event',{method:'POST',headers:{'Content-Type':'application/json'},body,keepalive:true}).catch(()=>{});
+  // 폴백도 동일하게 text/plain(프리플라이트 회피) + keepalive. sendBeacon이 false/예외일 때만 실행
+  fetch(API_URL+'/event',{method:'POST',headers:{'Content-Type':'text/plain;charset=UTF-8'},body,keepalive:true}).catch(()=>{});
 }
 
 async function lbSubmit(){
@@ -362,7 +376,7 @@ async function boot(){
   if(!nick){nick=autoNick();await sSet('nick',nick,false);} // 자동 채움 — 바로 시작 가능
   document.getElementById('nick').value=nick;syncNickEmoji();
   try{const d=await sGet('dex',false);if(d&&d.value)dex=JSON.parse(d.value);}catch(e){}
-  renderDex(); loadLB(); initSound(); initRQ();
+  renderDex(); loadLB(); initSound(); initRQ().then(renderRQ);
   track('visit');
 }
 document.getElementById('nick').addEventListener('change',async e=>{nick=cleanNickClient(e.target.value)||nick;e.target.value=nick;syncNickEmoji();await sSet('nick',nick,false);});
@@ -488,17 +502,14 @@ function endGame(){
 }
 function showResult(){
   document.getElementById('rScore').textContent=score.toLocaleString();
-  let grade,gc;if(score>=2000){grade='🌟 바다지킴이 마스터';gc='#f4b740';}
-  else if(score>=900){grade='💪 열혈 플로거';gc='#2596b8';}
-  else if(score>=350){grade='🙂 새내기 플로거';gc='#22c3a0';}
-  else{grade='🌱 플로깅 입문';gc='#7392a1';}
-  const g=document.getElementById('rGrade');g.textContent=grade;g.style.background=gc+'22';g.style.color=gc;
+  let grade;if(score>=2000)grade='🌟 바다지킴이 마스터';
+  else if(score>=900)grade='💪 열혈 플로거';
+  else if(score>=350)grade='🙂 새내기 플로거';
+  else grade='🌱 플로깅 입문';
+  document.getElementById('rGrade').textContent=grade;
   const sp=document.getElementById('rSpecial');
-  const critNote=critterMiss>0?`<br>🦀 바다 친구를 <b>${critterMiss}번</b> 넣었어요… 다음엔 잘 구분해봐요!`:'';
-  if(driftCount>0){sp.style.background='#e9f5fa';sp.style.borderColor='#cfeaf2';sp.style.color='#2596b8';
-    sp.innerHTML=`🌊 떠내려오는 쓰레기 <b>${driftCount}개</b> 잡았어요! 빠르게 지나가는 걸 잡다니 👏 (×3 보너스)${critNote}`;}
-  else{sp.style.background='#f4f9fb';sp.style.borderColor='#e6eff4';sp.style.color='#7392a1';
-    sp.innerHTML=`바다 위로 <b>빠르게 떠내려오는 쓰레기</b>를 잡으면 ×3 보너스예요. 다음엔 노려보세요 🌊${critNote}`;}
+  if(driftCount>0)sp.innerHTML=`🌊 떠내려온 쓰레기 <b>${driftCount}개</b> · <b>×3 보너스</b>`;
+  else sp.innerHTML=`🌊 떠내려오는 쓰레기는 <b>×3 보너스</b>`;
   document.getElementById('rBreak').innerHTML=Object.entries(caught).sort((a,b)=>b[1]-a[1]).map(([id,n])=>{const it=byId[id];return `<span class="bd">${it.emoji} ${it.name} <span class="n">×${n}</span></span>`;}).join('')||'<span class="bd">아무것도 못 넣었어요 😅</span>';
   // 결과 UI 초기화 + 자동 갱신
   document.getElementById('myRank').style.display='none';
@@ -509,7 +520,6 @@ function showResult(){
     if(score>rankedBest){sb.textContent='🏆 자동 갱신됨 ✓';doSubmit(true);}
     else sb.textContent='🏆 최고 기록 유지 중';
   } else {sb.disabled=false;sb.textContent='🏆 랭킹 등록';}
-  renderRQ();
   document.getElementById('resultOv').style.display='flex';
 }
 let rankedBest=-1; // 이번 세션에서 랭킹에 등록된 최고 점수 (-1 = 미등록)
@@ -522,7 +532,7 @@ async function doSubmit(auto){
     if(res.total){
       const pct=Math.max(1,Math.round(res.rank/res.total*100));
       const mr=document.getElementById('myRank');
-      mr.innerHTML=`🏅 내 순위 <b>#${res.rank}</b> / ${res.total}명 · <b>상위 ${pct}%</b>${res.best>score?` (최고 기록 ${res.best.toLocaleString()}점 기준)`:''}`;
+      mr.innerHTML=`🏅 내 순위 <b>#${res.rank}</b> / ${res.total}명 · <b>상위 ${pct}%</b>`;
       mr.style.display='block';
     }
   } else if(ok) rankedBest=Math.max(rankedBest,score); // 로컬 폴백
@@ -562,7 +572,7 @@ document.getElementById('inviteBtn').addEventListener('click',async function(){
 // 1탭 인지 질문 — 세션당 1문항 랜덤 배정, 답하면 다시 안 물음
 // 수치 출처: 국가해안쓰레기모니터링통계(MEIS) 유형별·연도별 (2018~2023, 60개 조사지점)
 const RQ=[
-  {id:'q1',text:'우리나라 해안쓰레기의 <b>87%가 플라스틱</b>이라는 것, 알고 있었나요?'},
+  {id:'q1',text:'우리나라 해안쓰레기의 <b>87.4%가 플라스틱</b>이라는 것, 알고 있었나요?'},
   {id:'q2',text:'이 게임의 쓰레기 등장 확률은 <b>실제 조사된 48만 개 데이터</b>를 그대로 옮긴 거예요. 알고 있었나요?'}
 ];
 const RQ_OPTS=[['new','😲 처음 알았어'],['vague','🤔 어렴풋이'],['knew','😎 알고 있었어']];
@@ -573,9 +583,11 @@ async function initRQ(){
   if(!rqId){rqId=RQ[Math.floor(Math.random()*RQ.length)].id;await sSet('rxq',rqId,false);}
 }
 function renderRQ(){
-  const wrap=document.getElementById('reactWrap');
-  if(rqAnswered){wrap.style.display='none';return;}
-  wrap.style.display='block';
+  const card=document.getElementById('rqCard'),wrap=document.getElementById('reactWrap');
+  if(!card||!wrap)return;
+  // 이미 답한 세션이면 카드 전체 숨김 (도감 밑 빈 카드 방지)
+  if(rqAnswered){card.style.display='none';return;}
+  card.style.display='block';
   const q=RQ.find(x=>x.id===rqId)||RQ[0];
   wrap.querySelector('.rq').innerHTML=q.text;
   wrap.querySelector('.reactrow').innerHTML=RQ_OPTS.map(o=>`<button class="reactbtn" data-r="${o[0]}">${o[1]}</button>`).join('');

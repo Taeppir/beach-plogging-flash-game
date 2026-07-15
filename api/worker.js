@@ -32,7 +32,8 @@ const MIN_DUR = 27000, MAX_DUR = 60000;
 
 export default {
   async fetch(req, env) {
-    if (req.method === 'OPTIONS') return new Response(null, { headers: CORS });
+    if (req.method === 'OPTIONS')
+      return new Response(null, { headers: { ...CORS, 'Access-Control-Max-Age': '86400' } });
     const url = new URL(req.url);
     const p = url.pathname;
 
@@ -127,7 +128,9 @@ const EVENT_NAMES = new Set([
 ]);
 
 async function event(req, env) {
-  const b = await req.json().catch(() => null);
+  // beacon은 text/plain으로 오므로 본문을 텍스트로 읽어 파싱 (/event 전용 — 다른 엔드포인트는 req.json() 유지)
+  let b = null;
+  try { b = JSON.parse(await req.text()); } catch (e) { b = null; }
   if (!b || !EVENT_NAMES.has(b.name)) return json({ error: 'bad event' }, 400);
   if (typeof b.uid !== 'string' || b.uid.length > 64) return json({ error: 'bad uid' }, 400);
   const data = b.data == null ? null : String(b.data).slice(0, 200);
@@ -219,7 +222,7 @@ async function stats(url, env) {
       '인사이트 카드 노출(세션)': insightSess.c,
     },
     reaction: {
-      'Q1(플라스틱 87%) 😲 처음 알았어': g('q1', 'new'),
+      'Q1(플라스틱 87.4%) 😲 처음 알았어': g('q1', 'new'),
       'Q1 🤔 어렴풋이': g('q1', 'vague'),
       'Q1 😎 알고 있었어': g('q1', 'knew'),
       'Q1 인지 변화율 %': pct(g('q1', 'new'), qTot('q1')),
