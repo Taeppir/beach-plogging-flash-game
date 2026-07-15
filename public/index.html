@@ -673,17 +673,37 @@ function openShareModal(blob,text,url){
   go.onclick=async()=>{
     if(go.dataset.busy==='1')return; // 한 클릭 처리 중 중복 실행(더블클릭 등) 차단
     go.dataset.busy='1';
+    // canShare 판정용 File과 실제 share에 넘기는 File을 동일 객체로 사용(타입·파일명 일치)
     const file=new File([blob],'beach-plogging.png',{type:'image/png'});
-    // 1) 파일 공유 지원 → 이미지+문구+링크를 한 번에 전송(이미지 1개). 여기서 return → 폴백 저장 안 탐
-    if(navigator.canShare&&navigator.canShare({files:[file]})){
+    const done=(label)=>{go.textContent=label;go.dataset.busy='0';};
+    // navigator.share가 존재하는 한 다운로드 창은 절대 띄우지 않는다.
+    if(navigator.share){
+      // 1순위: 이미지+문구+링크 공유 시트 (안드로이드·iOS)
+      if(navigator.canShare&&navigator.canShare({files:[file]})){
+        try{
+          await navigator.share({files:[file],text,url,title:'30초 해변 플로깅'});
+          return done('✓ 공유 완료'),track('share','image');
+        }catch(e){
+          if(e&&e.name==='AbortError')return done('📤 결과 공유하기'); // 사용자가 닫음 — 종료(다운로드 안 함)
+          /* 그 외 실패 → 2순위(문구만 공유)로 폴백. 다운로드로 새지 않게 */
+        }
+      }
+      // 2순위: 이미지 공유가 안 되면 문구+링크만이라도 공유 시트로 (다운로드 대신)
       try{
-        await navigator.share({files:[file],text,url,title:'30초 해변 플로깅'});
-        track('share','image');
-        go.textContent='✓ 공유 완료';
-      }catch(e){/* 사용자가 시트를 닫음(AbortError) — 집계 안 함 */}
-      go.dataset.busy='0';return;
+        await navigator.share({text,url,title:'30초 해변 플로깅'});
+        return done('✓ 공유 완료'),track('share','native');
+      }catch(e){
+        if(e&&e.name==='AbortError')return done('📤 결과 공유하기'); // 취소 — 종료(다운로드 안 함)
+        /* 비-Abort 실패 → 다운로드 없이 복사만(share 존재 시 다운로드 창 금지) */
+      }
+      // share는 있으나 파일·문구 공유가 모두 비정상 실패 → 다운로드 없이 문구+링크 복사만
+      const okS=await copyText(text+'\n'+url);
+      if(okS)track('share','copy');
+      go.textContent=okS?'🔗 링크 복사됨 ✓':'복사 실패';
+      setTimeout(()=>{go.textContent='📤 결과 공유하기';go.dataset.busy='0';},1800);
+      return;
     }
-    // 2) 미지원(PC·인앱브라우저) → 문구+링크 복사(1회) + 카드 이미지 저장(1회, 재생성 없이 같은 blob)
+    // 3순위: navigator.share 자체가 없을 때만 → 문구+링크 복사 + 카드 이미지 저장(같은 blob 재사용)
     const ok=await copyText(text+'\n'+url);
     saveCardImage(shareObjURL,'beach-plogging-'+score+'.png');
     if(ok)track('share','copy');
