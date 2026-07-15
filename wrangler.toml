@@ -7,7 +7,6 @@ compatibility_date = "2025-01-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "plogging-db"
-database_id = "여기에_본인_D1_database_id_붙여넣기"
+database_id = "52cc8209-12c7-4fad-8349-18eb6bdeb60d"
 
 # STATS_KEY 는 시크릿이므로 이 파일에 넣지 않는다.
-# Cloudflare 대시보드 또는 CLI로 별도 등록 (아래 안내 참고).
