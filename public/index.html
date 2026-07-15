@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>30초 해변 플로깅</title>
+<meta name="description" content="실제 국가해안쓰레기모니터링통계로 만든 30초 미니게임. 쓰레기를 주우며 우리 바다 데이터를 만나보세요.">
+<meta property="og:title" content="30초 해변 플로깅 🏖️">
+<meta property="og:description" content="플라스틱이 해안쓰레기의 87%라는 걸 알고 있었나요? 실제 공공데이터로 만든 30초 게임, 지금 도전!">
+<meta property="og:type" content="website">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
+<style>
+  :root{--ink:#183947;--muted:#7392a1;--faint:#a9c1cd;--sky:#2ba7c7;--sky-soft:#e4f4f9;
+    --coral:#ff6f61;--amber:#f6a623;--mint:#22c3a0;--purple:#9b7ede;--gold:#f4b740;
+    --sans:'Pretendard',system-ui,sans-serif;--line:#e6eff4;
+    --sh:0 8px 24px rgba(28,86,116,.12);--sh-sm:0 3px 10px rgba(28,86,116,.08);}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{font-family:var(--sans);color:var(--ink);background:#eaf4fa;min-height:100vh;-webkit-font-smoothing:antialiased;overflow-x:hidden;touch-action:manipulation}
+  .wrap{max-width:460px;margin:0 auto;padding:16px 14px 40px}
+  .top{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .logo{width:44px;height:44px;border-radius:15px;background:linear-gradient(145deg,#38b6d6,#2ba7c7);display:grid;place-items:center;font-size:23px;box-shadow:var(--sh-sm)}
+  .top h1{font-size:19px;font-weight:800;letter-spacing:-.02em}.top p{font-size:11.5px;color:var(--muted)}
+
+  /* 3-layer stage */
+  .stage{position:relative;height:470px;border-radius:26px;overflow:hidden;box-shadow:var(--sh);touch-action:none;
+    background:linear-gradient(180deg,
+      #bfe9f5 0%, #a6dcee 28%,      /* 하늘 */
+      #5cc0d8 28%, #2f97b8 52%,     /* 바다 */
+      #f0dfb2 52%, #f7ecc9 100%);}  /* 모래 */
+  .sun{position:absolute;top:18px;right:26px;width:40px;height:40px;border-radius:50%;background:radial-gradient(circle,#ffe58a,#ffd35c);box-shadow:0 0 26px #ffe08a;z-index:1}
+  .cloud{position:absolute;font-size:26px;opacity:.9;animation:drift 22s linear infinite;z-index:1}
+  @keyframes drift{from{transform:translateX(-60px)}to{transform:translateX(500px)}}
+  .fish{position:absolute;font-size:20px;opacity:.85;z-index:1;animation:swim linear infinite;transform:scaleX(-1)}
+  @keyframes swim{from{transform:translateX(-40px) scaleX(-1)}to{transform:translateX(500px) scaleX(-1)}}
+  .seaShine{position:absolute;left:0;right:0;top:29%;height:23%;z-index:1;opacity:.4;pointer-events:none}
+  .seaShine svg{width:200%;height:100%;animation:waveMove 7s linear infinite}
+  @keyframes waveMove{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+  .band-lbl{position:absolute;left:8px;font-size:9px;font-weight:800;color:rgba(255,255,255,.65);z-index:1;letter-spacing:.1em}
+
+  .trash{position:absolute;font-size:34px;cursor:grab;user-select:none;line-height:1;touch-action:none;z-index:3;animation:bob 1.6s ease-in-out infinite}
+  .trash.drift{animation:none;z-index:4}
+  .trash.rare{filter:drop-shadow(0 0 8px #ffd35c)}
+  .trash.rare::after{content:"";position:absolute;inset:-8px;border-radius:50%;box-shadow:0 0 0 3px rgba(244,183,64,.55);animation:ring 1s ease-out infinite}
+  .trash.drift::before{content:"🌊";position:absolute;left:50%;bottom:-16px;transform:translateX(-50%);font-size:16px;opacity:.8}
+  .trash.dragging{animation:none;cursor:grabbing;z-index:30;transform:scale(1.25);filter:drop-shadow(0 6px 8px rgba(0,0,0,.25))}
+  .trash.dragging::before{display:none}
+  @keyframes ring{0%{transform:scale(.6);opacity:.9}100%{transform:scale(1.5);opacity:0}}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .float{position:absolute;font-weight:800;font-size:16px;pointer-events:none;z-index:40;animation:up .8s ease-out forwards}
+  @keyframes up{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-44px)}}
+
+  .bin{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);z-index:8;text-align:center;transition:transform .12s}
+  .bin .can{font-size:52px;line-height:1;filter:drop-shadow(0 4px 6px rgba(0,0,0,.18))}
+  .bin .lbl{font-size:10px;font-weight:800;color:#5a7c4a;background:#eafbe5;border-radius:999px;padding:2px 10px;margin-top:-4px;display:inline-block}
+  .bin.hot{transform:translateX(-50%) scale(1.2)}.bin.hot .can{filter:drop-shadow(0 0 12px #7ed37a)}
+  .bin.moving{animation:binSlide 2.1s ease-in-out infinite alternate}
+  @keyframes binSlide{from{left:24%}to{left:76%}}
+
+  .hud{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;padding:12px 14px;z-index:6;pointer-events:none}
+  .hud .pill{background:rgba(255,255,255,.92);border-radius:999px;padding:6px 13px;font-weight:800;font-size:14px;box-shadow:var(--sh-sm);display:flex;align-items:center;gap:5px}
+  .hud .time .bar{width:56px;height:6px;border-radius:3px;background:#dbeaf0;overflow:hidden;margin-left:2px}
+  .hud .time .bar i{display:block;height:100%;background:var(--sky);width:100%;transition:width .25s linear}
+  .combo{position:absolute;top:52px;left:50%;transform:translateX(-50%);z-index:6;font-weight:800;color:#fff;font-size:15px;opacity:0;transition:.15s;pointer-events:none;text-shadow:0 1px 3px rgba(0,0,0,.3)}
+  .combo.show{opacity:1;transform:translateX(-50%) scale(1.15)}
+
+  .overlay{position:absolute;inset:0;background:rgba(24,57,71,.3);display:flex;align-items:center;justify-content:center;padding:20px;z-index:20}
+  .panel{background:#fff;border-radius:24px;padding:24px 22px;width:100%;box-shadow:var(--sh);text-align:center}
+  .panel h2{font-size:20px;font-weight:800}
+  .panel .lead{font-size:13px;color:var(--muted);margin:8px 0 18px;line-height:1.55}
+  .nickrow{display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:16px}
+  .nickrow input{border:1.5px solid var(--line);border-radius:12px;padding:9px 13px;font-family:var(--sans);font-size:14px;font-weight:700;width:130px;text-align:center;outline:none}
+  .nickrow input:focus{border-color:var(--sky)}
+  .dice{font-family:var(--sans);font-size:17px;border:1.5px solid var(--line);background:#fff;width:40px;height:40px;border-radius:12px;cursor:pointer;transition:transform .12s}
+  .dice:active{transform:rotate(90deg) scale(.92)}
+  .bigbtn{font-family:var(--sans);font-size:17px;font-weight:800;color:#fff;background:linear-gradient(145deg,#2fb6d8,#2596b8);border:none;border-radius:18px;padding:15px 34px;cursor:pointer;box-shadow:0 8px 18px rgba(37,150,184,.35)}
+  .bigbtn:active{transform:scale(.96)}
+  .howto{font-size:11.5px;color:var(--faint);margin-top:14px;line-height:1.6}
+  .score-big{font-size:44px;font-weight:800;color:var(--sky);line-height:1}
+  .grade-tag{display:inline-block;font-size:13px;font-weight:800;padding:6px 16px;border-radius:999px;margin:10px 0 4px}
+  .breakdown{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin:16px 0}
+  .bd{background:#f4f9fb;border-radius:11px;padding:7px 11px;font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:5px}.bd .n{color:var(--muted);font-weight:700}
+  .special{background:#e9f5fa;border:1px solid #cfeaf2;border-radius:14px;padding:11px 13px;font-size:12.5px;color:#2596b8;line-height:1.5;margin-bottom:14px;font-weight:600}
+  .rbtns{display:flex;gap:9px}.rbtns button{flex:1;font-family:var(--sans);font-size:14px;font-weight:800;padding:13px;border-radius:14px;cursor:pointer;border:none}
+  .rbtns .again{background:var(--sky);color:#fff}.rbtns .share{background:#eef5f8;color:#4a6b7a}
+
+  .card{background:#fff;border-radius:22px;box-shadow:var(--sh-sm);padding:16px;margin-top:14px}
+  .card .h{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .card .h .t{font-size:14px;font-weight:800}.card .h .c{font-size:11.5px;color:var(--muted);background:var(--sky-soft);padding:4px 10px;border-radius:999px}
+  .badge{font-size:9px;font-weight:800;padding:2px 7px;border-radius:6px;background:#e0f7f0;color:#159c7e;margin-left:4px}
+  /* insight bars */
+  .ins{display:flex;flex-direction:column;gap:8px}
+  .insrow{display:flex;align-items:center;gap:9px}
+  .insrow .em{font-size:17px;width:22px;text-align:center}
+  .insrow .nm{font-size:12px;font-weight:600;width:58px;flex:none}
+  .insrow .track{flex:1;height:16px;background:#f0f6f9;border-radius:8px;overflow:hidden;display:block}
+  .insrow .fill{display:block;height:100%;border-radius:8px;min-width:6px;transition:width .6s}
+  .insrow .pc{font-size:11px;font-weight:700;color:var(--muted);width:44px;text-align:right}
+  .insnote{font-size:11px;color:var(--faint);margin-top:11px;line-height:1.5}
+  .dexrow{display:flex;flex-wrap:wrap;gap:9px}
+  .dcell{width:52px;text-align:center}.dcell .e{font-size:26px;filter:grayscale(1) opacity(.3)}.dcell.got .e{filter:none}
+  .dcell .l{font-size:9.5px;color:var(--faint);margin-top:2px}.dcell.got .l{color:var(--muted)}
+  .lb{display:flex;flex-direction:column;gap:7px}
+  .lbrow{display:flex;align-items:center;gap:10px;background:#f4f9fb;border-radius:12px;padding:9px 12px}
+  .lbrow .rk{font-weight:800;color:var(--sky);width:22px;font-size:14px}.lbrow .who{flex:1;font-size:13px;font-weight:700}.lbrow .sc{font-weight:800;font-size:14px}
+  .lbrow.me{background:#e4f4f9;border:1px solid #b9e2ee}
+  .lbempty,.lbload{font-size:12px;color:var(--faint);text-align:center;padding:14px}
+  .promo{text-align:center}.promo .pm-t{font-size:15px;font-weight:800}.promo .pm-d{font-size:12px;color:var(--muted);margin:6px 0 14px;line-height:1.5}
+  .pm-links{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:14px}
+  .pm-btn{font-size:13px;font-weight:700;text-decoration:none;padding:11px 16px;border-radius:13px}
+  .pm-btn.data{background:var(--sky);color:#fff}.pm-btn.svc{background:#eaf7fb;color:#2596b8;border:1px solid #cfeaf2}
+  .pm-fb{display:flex;align-items:center;justify-content:center;gap:10px;font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:13px}
+  .likebtn{font-family:var(--sans);font-size:13px;font-weight:800;border:none;background:#fff0ee;color:#e0574a;border-radius:999px;padding:8px 15px;cursor:pointer;transition:transform .1s}
+  .likebtn:active{transform:scale(.94)}.likebtn.done{background:#ffe1dc}
+  footer{margin-top:14px;font-size:11px;color:var(--muted);line-height:1.7;padding:0 6px}footer b{color:#4a6b7a}
+  /* v2 */
+  .sndtg{margin-left:auto;font-family:var(--sans);font-size:18px;border:none;background:#fff;width:40px;height:40px;border-radius:13px;box-shadow:var(--sh-sm);cursor:pointer}
+  .trash.critter{filter:drop-shadow(0 2px 3px rgba(0,0,0,.15))}
+  .myrank{background:#fff7e8;border:1px solid #f4dfb5;border-radius:14px;padding:10px 13px;font-size:13px;font-weight:700;color:#b07a1e;margin-bottom:14px;display:none}
+  .reactwrap{margin:2px 0 14px}
+  .reactwrap .rq{font-size:13px;color:#4a6b7a;font-weight:700;margin-bottom:9px;line-height:1.55}
+  .reactwrap .rq b{color:#1478a0}
+  .reactrow{display:flex;gap:8px;justify-content:center}
+  .reactbtn{font-family:var(--sans);font-size:13px;font-weight:700;border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:8px 13px;cursor:pointer;color:#4a6b7a;transition:.12s}
+  .reactbtn:active{transform:scale(.94)}
+  .reactbtn.sel{border-color:var(--sky);background:var(--sky-soft);color:#1478a0}
+  .reactbtn:disabled{opacity:.55;cursor:default}
+  .reactdone{font-size:12px;color:var(--mint);font-weight:700}
+  .who .tag{font-size:10px;color:#a8bec9;font-weight:700;margin-left:2px}
+  .invite{width:100%;margin-top:9px;font-family:var(--sans);font-size:14px;font-weight:800;color:#1478a0;background:var(--sky-soft);border:1.5px solid #cfeaf2;border-radius:14px;padding:12px;cursor:pointer;transition:.12s}
+  .invite:active{transform:scale(.97)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><div class="logo">🧤</div><div><h1>30초 해변 플로깅</h1><p>쓰레기를 끌어다 쓰레기통에 넣어요</p></div><button class="sndtg" id="sndTg" aria-label="소리">🔊</button></div>
+
+  <div class="stage" id="stage">
+    <div class="sun"></div>
+    <div class="cloud" style="top:14px;left:30px">☁️</div>
+    <div class="band-lbl" style="top:6px">SKY</div>
+    <div class="seaShine"><svg viewBox="0 0 200 60" preserveAspectRatio="none" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="1.4" stroke-linecap="round">
+      <path d="M0 14 q25 -9 50 0 t50 0 t50 0 t50 0"/>
+      <path d="M0 32 q25 9 50 0 t50 0 t50 0 t50 0"/>
+      <path d="M0 48 q25 -8 50 0 t50 0 t50 0 t50 0"/>
+    </svg></div>
+    <div class="band-lbl" style="top:31%">SEA</div>
+    <div class="fish" style="top:34%;animation-duration:11s">🐟</div>
+    <div class="fish" style="top:44%;animation-duration:15s;animation-delay:-6s">🐠</div>
+    <div class="fish" style="top:39%;animation-duration:13s;animation-delay:-3s">🐟</div>
+    <div class="band-lbl" style="top:54%;color:rgba(120,95,50,.5)">SAND</div>
+    <div class="hud">
+      <div class="pill time">⏱️ <span id="tsec">30</span><span class="bar"><i id="tbar"></i></span></div>
+      <div class="pill">🛍️ <span id="score">0</span></div>
+    </div>
+    <div class="combo" id="combo"></div>
+    <div class="bin" id="bin"><div class="can">🗑️</div><div class="lbl">여기 넣기</div></div>
+
+    <div class="overlay" id="startOv">
+      <div class="panel">
+        <h2>🏖️ 해변을 지켜줘!</h2>
+        <div class="lead">떠밀려온 쓰레기를 <b>끌어다 쓰레기통에</b> 넣어요.<br><b>귀한 쓰레기일수록 높은 점수</b> · 바다 위로 <b>떠내려오는 쓰레기</b>는 ×3!</div>
+        <div class="nickrow"><span id="nickEmo">🐚</span> <input id="nick" maxlength="10" placeholder="닉네임"><button class="dice" id="diceBtn" aria-label="새 닉네임">🎲</button></div>
+        <button class="bigbtn" id="startBtn">플로깅 시작</button>
+        <div class="howto">점수는 실제 발생 확률이 낮을수록 높아요 🌊 떠내려오는 쓰레기는 ×3<br>🦀🐚🐢 <b>바다 친구를 넣으면 감점</b>이에요 — 쓰레기만 골라 담아요!</div>
+      </div>
+    </div>
+
+    <div class="overlay" id="resultOv" style="display:none">
+      <div class="panel">
+        <div style="font-size:12px;color:var(--muted);font-weight:700">플로깅 완료!</div>
+        <div class="score-big" id="rScore">0</div>
+        <div class="grade-tag" id="rGrade">—</div>
+        <div class="special" id="rSpecial"></div>
+        <div class="breakdown" id="rBreak"></div>
+        <div class="myrank" id="myRank"></div>
+        <div class="reactwrap" id="reactWrap">
+          <div class="rq"></div>
+          <div class="reactrow"></div>
+        </div>
+        <div class="rbtns"><button class="again" id="againBtn">🔄 다시</button><button class="share" id="shareBtn">🏆 랭킹 등록</button></div>
+        <button class="invite" id="inviteBtn">📤 친구에게 도전장 보내기</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="h"><span class="t">📖 주운 쓰레기 도감</span><span class="c" id="dexC">0/9</span></div>
+    <div class="dexrow" id="dexrow"></div>
+  </div>
+
+  <div class="card">
+    <div class="h"><span class="t">📊 해안쓰레기 인사이트 <span class="badge">실측</span></span><span class="c">MEIS</span></div>
+    <div class="ins" id="ins"></div>
+    <div class="insnote"><b style="color:#4a6b7a">2018~2023년</b> 국가해안쓰레기 모니터링통계 · 개수 기준 전국 누적(6년). <b style="color:#4a6b7a">플라스틱이 87%</b>로 압도적. 막대 <b>색이 붉을수록 희귀</b>하고 게임에선 <b>고득점</b>. 정확한 값은 오른쪽 %.</div>
+  </div>
+
+  <div class="card">
+    <div class="h"><span class="t">🏆 플로깅 랭킹 <span class="badge">실시간</span></span><span class="c" id="lbC"></span></div>
+    <div class="lb" id="lb"><div class="lbload">불러오는 중…</div></div>
+  </div>
+
+  <div class="card promo">
+    <div class="pm-t">🌊 이 게임 속 쓰레기, 전부 진짜예요</div>
+    <div class="pm-d">국가해안쓰레기 모니터링통계(MEIS)를 게임으로 만들었어요.</div>
+    <div class="pm-links">
+      <a class="pm-btn data" href="https://www.meis.go.kr" target="_blank" rel="noopener">📊 진짜 데이터 보기</a>
+      <a class="pm-btn svc" id="svcLink" style="display:none" target="_blank" rel="noopener">🌤️ 해안쓰레기 예보 보기</a>
+    </div>
+    <div class="pm-fb"><span>이 게임 어땠어요?</span><button class="likebtn" id="likeBtn">👍 좋아요 <b id="likeCount">0</b></button></div>
+  </div>
+
+  <footer><b>🗑️ 점수 규칙</b> — 점수는 그 쓰레기의 <b>실제 발생 확률이 낮을수록 높아요</b>(통계 기반). 바다 위로 떠내려오는 쓰레기를 잡으면 ×3 보너스. 🦀🐚🐢 바다 생물을 넣으면 <b>−80점</b>과 콤보 초기화. 데이터 출처: 국가해안쓰레기 모니터링통계(MEIS).</footer>
+</div>
+
+<script>
+const ITEMS=[{"id": "plastic", "name": "플라스틱", "item": "페트병·플라스틱", "emoji": "🥤", "cnt": 419456, "wt": 12413.5, "pct": 87.4}, {"id": "glass", "name": "유리", "item": "유리병·조각", "emoji": "🍾", "cnt": 16418, "wt": 742.5, "pct": 3.4}, {"id": "etc", "name": "기타재질", "item": "정체불명 조각", "emoji": "❓", "cnt": 10013, "wt": 780.3, "pct": 2.1}, {"id": "metal", "name": "금속", "item": "캔·금속", "emoji": "🥫", "cnt": 9103, "wt": 804.2, "pct": 1.9}, {"id": "foreign", "name": "외국기인", "item": "외국·먼바다 유입", "emoji": "🌏", "cnt": 8753, "wt": 2611.6, "pct": 1.8}, {"id": "wood", "name": "목재", "item": "나무·목재", "emoji": "🪵", "cnt": 8350, "wt": 5258.1, "pct": 1.7}, {"id": "paper", "name": "종이", "item": "종이·포장", "emoji": "📦", "cnt": 3442, "wt": 93.6, "pct": 0.7}, {"id": "fiber", "name": "천연섬유", "item": "천·밧줄", "emoji": "🧵", "cnt": 2501, "wt": 256.4, "pct": 0.5}, {"id": "rubber", "name": "고무", "item": "고무·타이어", "emoji": "🛞", "cnt": 2016, "wt": 490.6, "pct": 0.4}];
+const byId=Object.fromEntries(ITEMS.map(i=>[i.id,i]));
+// 정직한 점수: 발생 확률(개수%)의 역수 기반, 10점 단위 반올림
+function ptsFor(it){return Math.max(10, Math.round(1000/it.pct/10)*10);}
+function isBig(it){return ptsFor(it)>=1000;}
+const totalPct=ITEMS.reduce((s,i)=>s+i.pct,0);
+function rollItem(){let r=Math.random()*totalPct,a=0;for(const it of ITEMS){a+=it.pct;if(r<=a)return it;}return ITEMS[0];}
+const DRIFT_MULT=3, CRITTER_PENALTY=80;
+// 방해 요소: 바다 친구 — 넣으면 감점
+const CRITTERS=[{id:'crab',emoji:'🦀',name:'게'},{id:'shell',emoji:'🐚',name:'조개'},{id:'turtle',emoji:'🐢',name:'거북이'}];
+
+// insight bars — 길이는 비교용(제곱근 스케일)로 작은 값도 구분, 색=희귀도, 정확한 값은 % 라벨
+(function(){
+  const sorted=[...ITEMS].sort((a,b)=>b.pct-a.pct), n=sorted.length;
+  const sq=sorted.map(it=>Math.sqrt(it.pct)), mxs=Math.max(...sq);
+  const L=(a,b,t)=>Math.round(a+(b-a)*t);
+  document.getElementById('ins').innerHTML=sorted.map((it,i)=>{
+    const t=i/(n-1);
+    const c=`rgb(${L(64,255,t)},${L(170,111,t)},${L(214,97,t)})`;
+    const w=Math.max(7, Math.sqrt(it.pct)/mxs*100);
+    return `<div class="insrow"><span class="em">${it.emoji}</span><span class="nm">${it.name}</span>
+     <span class="track"><span class="fill" style="width:${w}%;background:${c}"></span></span>
+     <span class="pc" style="color:${c}">${it.pct}%</span></div>`;
+  }).join('');
+})();
+
+// ===== storage: sessionStorage(탭 세션) — 탭 닫으면 초기화, 랭킹 서버에만 닉네임·점수가 남음 =====
+const memS={},memP={};
+function ssOK(){try{sessionStorage.setItem('_t','1');sessionStorage.removeItem('_t');return true;}catch(e){return false;}}
+const SS=ssOK();
+async function sGet(k,sh){
+  if(SS&&!sh){const v=sessionStorage.getItem('plog:'+k);return v==null?null:{value:v};}
+  try{if(window.storage)return await window.storage.get(k,sh);}catch(e){}
+  const m=sh?memS:memP;return (k in m)?{value:m[k]}:null;
+}
+async function sSet(k,v,sh){
+  if(SS&&!sh){sessionStorage.setItem('plog:'+k,v);return{value:v};}
+  try{if(window.storage)return await window.storage.set(k,v,sh);}catch(e){}
+  (sh?memS:memP)[k]=v;return{value:v};
+}
+async function sList(p,sh){
+  try{if(window.storage)return await window.storage.list(p,sh);}catch(e){}
+  const m=sh?memS:memP;return{keys:Object.keys(m).filter(k=>k.startsWith(p))};
+}
+
+// ===== 익명 ID + 자동 닉네임 =====
+function makeUid(){try{return crypto.randomUUID();}catch(e){return 'u'+Date.now()+Math.random().toString(36).slice(2,10);}}
+const ADJ=['익명','성난','신난','졸린','용감한','재빠른','느긋한','씩씩한','반짝','수줍은'];
+// [이름, 이모지] — 닉네임과 이모지가 함께 움직임
+const SEA=[['물범','🦭'],['해달','🦦'],['돌고래','🐬'],['범고래','🐋'],['고래','🐳'],['바다거북','🐢'],['문어','🐙'],['오징어','🦑'],['새우','🦐'],['소라','🐚'],['상어','🦈'],['복어','🐡'],['펭귄','🐧'],['갈매기','🐦'],['불가사리','⭐']];
+let nickEmoji='🐚';
+function autoNick(){
+  let name='',emo='🐚';
+  do{const sp=SEA[Math.floor(Math.random()*SEA.length)];name=ADJ[Math.floor(Math.random()*ADJ.length)]+sp[0];emo=sp[1];}while(name.length>7);
+  nickEmoji=emo;
+  return name+(100+Math.floor(Math.random()*900)); // 3자리 번호 — 동명이인 구분
+}
+// 닉네임 문자열에서 생물 이름을 찾아 이모지 매칭 (직접 입력한 닉네임·랭킹 표시용)
+function emojiFor(n){for(const [name,emo] of SEA){if((n||'').includes(name))return emo;}return '🐚';}
+function syncNickEmoji(){nickEmoji=emojiFor(nick);document.getElementById('nickEmo').textContent=nickEmoji;}
+// uid → 2자리 표시 태그 (#10~#99). 동명이인 구분용, uid 복원 불가
+function tagOf(s){let h=5381;for(let i=0;i<s.length;i++)h=((h*33)^s.charCodeAt(i))>>>0;return 10+(h%90);}
+// 부적절 닉네임 1차 필터 (서버에서 최종 검증)
+const BAD=['시발','씨발','씨빨','병신','새끼','개새','지랄','썅','니미','좆','자지','보지','섹스','성교','창녀','fuck','shit','sex'];
+function cleanNickClient(n){
+  n=(n||'').replace(/[\u200b-\u200f\u2028\u2029\ufeff]/g,'').trim();
+  const low=n.toLowerCase();
+  if(BAD.some(b=>low.includes(b)))return autoNick();
+  return n;
+}
+let uid=null,sess='s'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+let nick='',dex={};
+
+// ===== 백엔드 (Cloudflare Worker + D1) =====
+const API_URL = "";     // 배포 시 Worker 주소 (예: https://plogging-api.내계정.workers.dev)
+const SERVICE_URL = ""; // (선택) 해안쓰레기 예보 서비스 링크
+const API_ON = !!API_URL;
+
+// ===== 이벤트 추적 (데이터 활성화 지표) =====
+function track(name,data){
+  if(!API_ON)return;
+  const body=JSON.stringify({uid,sess,name,data:data||null});
+  try{
+    if(navigator.sendBeacon){navigator.sendBeacon(API_URL+'/event',new Blob([body],{type:'application/json'}));return;}
+  }catch(e){}
+  fetch(API_URL+'/event',{method:'POST',headers:{'Content-Type':'application/json'},body,keepalive:true}).catch(()=>{});
+}
+
+async function lbSubmit(){
+  if(API_ON){
+    const r=await fetch(API_URL+'/submit',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({uid,nick,score,items:itemCount,drift:driftCount,dur:lastDur})});
+    if(!r.ok)throw new Error(r.status);
+    return await r.json(); // {rank,total,best}
+  }
+  // 로컬 미리보기 폴백 — 실서비스와 동일하게 익명 ID가 키 (닉네임이 같아도 별도 기록)
+  const key='lb:'+uid; let prev=null; try{const g=await sGet(key,true);if(g&&g.value)prev=JSON.parse(g.value);}catch(e){}
+  if(!prev||score>prev.score)await sSet(key,JSON.stringify({nick,score,ts:Date.now()}),true);
+  else if(prev&&prev.nick!==nick){prev.nick=nick;await sSet(key,JSON.stringify(prev),true);}
+  return null;
+}
+async function lbTop(){
+  if(API_ON){
+    const r=await fetch(API_URL+'/top');if(!r.ok)throw new Error(r.status);
+    const j=await r.json();
+    if(Array.isArray(j))return{list:j,total:j.length}; // 구버전 호환
+    return{list:j.list||[],total:j.total||0};
+  }
+  const rows=[];const r=await sList('lb:',true);for(const k of (r&&r.keys)||[]){try{const g=await sGet(k,true);if(g&&g.value)rows.push(JSON.parse(g.value));}catch(e){}}
+  return{list:rows,total:rows.length};
+}
+async function likeGet(){if(API_ON){try{const r=await fetch(API_URL+'/likes');if(r.ok){const j=await r.json();return j.count||0;}}catch(e){}return 0;}try{const g=await sGet('likes',true);return g&&g.value?parseInt(g.value):0;}catch(e){return 0;}}
+async function likeAdd(){if(API_ON){try{await fetch(API_URL+'/like',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uid})});}catch(e){}return;}let n=0;try{const g=await sGet('likes',true);if(g&&g.value)n=parseInt(g.value);}catch(e){}await sSet('likes',String(n+1),true);}
+
+// ===== 사운드 (WebAudio, 파일 없이 합성) + 햅틱 =====
+let AC=null,soundOn=true;
+function ac(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}}if(AC&&AC.state==='suspended')AC.resume();return AC;}
+function beep(freq,dur,type,vol,slide){
+  if(!soundOn)return;const c=ac();if(!c)return;
+  const o=c.createOscillator(),g=c.createGain();
+  o.type=type||'sine';o.frequency.setValueAtTime(freq,c.currentTime);
+  if(slide)o.frequency.exponentialRampToValueAtTime(slide,c.currentTime+dur);
+  g.gain.setValueAtTime(vol||0.12,c.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+dur);
+  o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+dur);
+}
+function vib(p){try{if(navigator.vibrate)navigator.vibrate(p);}catch(e){}}
+const sfx={
+  pick:()=>beep(320,0.06,'triangle',0.08),
+  drop:(big)=>{beep(big?660:520,0.09,'triangle',0.14,big?990:660);if(big)setTimeout(()=>beep(1180,0.12,'sine',0.1),70);},
+  drift:()=>{beep(740,0.08,'sine',0.12,1200);setTimeout(()=>beep(1480,0.1,'sine',0.09),80);},
+  bad:()=>beep(180,0.22,'sawtooth',0.13,90),
+  combo:()=>beep(880,0.1,'square',0.06,1320),
+  tick:()=>beep(1050,0.04,'square',0.05),
+  end:()=>{beep(523,0.12,'triangle',0.12);setTimeout(()=>beep(659,0.12,'triangle',0.12),120);setTimeout(()=>beep(784,0.2,'triangle',0.12),240);}
+};
+async function initSound(){
+  try{const g=await sGet('snd',false);if(g&&g.value==='0')soundOn=false;}catch(e){}
+  const tg=document.getElementById('sndTg');tg.textContent=soundOn?'🔊':'🔇';
+  tg.addEventListener('click',async()=>{soundOn=!soundOn;tg.textContent=soundOn?'🔊':'🔇';await sSet('snd',soundOn?'1':'0',false);if(soundOn)sfx.drop(false);});
+}
+
+async function boot(){
+  try{const u=await sGet('uid',false);if(u&&u.value)uid=u.value;}catch(e){}
+  if(!uid){uid=makeUid();await sSet('uid',uid,false);} // 세션 한정 익명 ID (탭 닫으면 소멸)
+  try{const n=await sGet('nick',false);if(n&&n.value)nick=n.value;}catch(e){}
+  if(!nick){nick=autoNick();await sSet('nick',nick,false);} // 자동 채움 — 바로 시작 가능
+  document.getElementById('nick').value=nick;syncNickEmoji();
+  try{const d=await sGet('dex',false);if(d&&d.value)dex=JSON.parse(d.value);}catch(e){}
+  renderDex(); loadLB(); initSound(); initRQ();
+  track('visit');
+}
+document.getElementById('nick').addEventListener('change',async e=>{nick=cleanNickClient(e.target.value)||nick;e.target.value=nick;syncNickEmoji();await sSet('nick',nick,false);});
+document.getElementById('diceBtn').addEventListener('click',async()=>{
+  nick=autoNick();document.getElementById('nick').value=nick;document.getElementById('nickEmo').textContent=nickEmoji;await sSet('nick',nick,false);sfx.pick();
+});
+function ensureNick(){
+  const inp=document.getElementById('nick');
+  nick=cleanNickClient(inp.value)||nick||autoNick();
+  inp.value=nick;sSet('nick',nick,false);
+}
+function renderDex(){
+  document.getElementById('dexrow').innerHTML=ITEMS.map(it=>{const got=dex[it.id];return `<div class="dcell ${got?'got':''}"><div class="e">${it.emoji}</div><div class="l">${got?it.name:'???'}</div></div>`;}).join('');
+  document.getElementById('dexC').textContent=Object.keys(dex).length+'/9';
+}
+
+const stage=document.getElementById('stage'), bin=document.getElementById('bin');
+let playing=false,score=0,timeLeft=30,combo=0,comboT=0,spawnTimer=null,tickTimer=null,caught={},driftCount=0,critterMiss=0,itemCount=0,gameStartTs=0,lastDur=0,playedThisSess=0;
+
+function startGame(){
+  ensureNick();
+  score=0;timeLeft=30;combo=0;caught={};driftCount=0;critterMiss=0;itemCount=0;gameStartTs=Date.now();
+  document.getElementById('startOv').style.display='none';document.getElementById('resultOv').style.display='none';
+  document.getElementById('score').textContent='0';document.getElementById('tsec').textContent='30';document.getElementById('tbar').style.width='100%';
+  document.querySelectorAll('.trash').forEach(e=>{if(e._driftTimer)clearInterval(e._driftTimer);e.remove();});
+  bin.classList.remove('moving');
+  playing=true;ac();
+  playedThisSess++;track(playedThisSess>1?'replay':'game_start');
+  tickTimer=setInterval(()=>{timeLeft--;document.getElementById('tsec').textContent=timeLeft;document.getElementById('tbar').style.width=(timeLeft/30*100)+'%';if(timeLeft<=10)bin.classList.add('moving');if(timeLeft<=5&&timeLeft>0)sfx.tick();if(timeLeft<=0)endGame();},1000);
+  scheduleSpawn();
+}
+function scheduleSpawn(){if(!playing)return;spawn();const gap=Math.max(430,780-(30-timeLeft)*12);spawnTimer=setTimeout(scheduleSpawn,gap);}
+function spawn(){
+  const r=Math.random();
+  if(r<0.16)spawnOne(true);
+  else if(r<0.34)spawnCritter();
+  else spawnOne(false);
+}
+function spawnCritter(){
+  const it=CRITTERS[Math.floor(Math.random()*CRITTERS.length)];
+  const el=document.createElement('div');
+  el.className='trash critter';el.textContent=it.emoji;el.dataset.id=it.id;el.dataset.bad='1';
+  el.style.fontSize=(28+Math.random()*6)+'px';
+  const x=8+Math.random()*78, y=56+Math.random()*36; el.style.left=x+'%';el.style.top=y+'%';
+  el._kill=setTimeout(()=>{if(el._dragging)return;el.style.transition='opacity .3s';el.style.opacity='0';setTimeout(()=>el.remove(),300);},2600);
+  attachDrag(el,it);stage.appendChild(el);
+}
+function spawnOne(drift){
+  const it=rollItem();
+  const el=document.createElement('div');
+  el.className='trash'+((drift||isBig(it))?' rare':'')+(drift?' drift':'');
+  el.textContent=it.emoji;el.dataset.id=it.id;if(drift)el.dataset.drift='1';
+  el.style.fontSize=(30+Math.random()*8)+'px';
+  if(drift){
+    const dir=Math.random()<0.5?1:-1; let x=dir>0?-8:106; const y=33+Math.random()*13;
+    el.style.top=y+'%';el.style.left=x+'%';
+    el._driftTimer=setInterval(()=>{x+=dir*1.7;el.style.left=x+'%';if(x<-14||x>114){clearInterval(el._driftTimer);el.remove();}},28);
+  } else {
+    const x=8+Math.random()*78, y=56+Math.random()*36; el.style.left=x+'%';el.style.top=y+'%';
+    el._kill=setTimeout(()=>{if(el._dragging)return;el.style.transition='opacity .3s';el.style.opacity='0';setTimeout(()=>el.remove(),300);},2600);
+  }
+  attachDrag(el,it);stage.appendChild(el);
+}
+
+let drag=null;
+function attachDrag(el,it){
+  el.addEventListener('pointerdown',ev=>{
+    if(!playing)return;ev.preventDefault();
+    if(el._driftTimer){clearInterval(el._driftTimer);el._driftTimer=null;}
+    clearTimeout(el._kill);el._dragging=true;el.classList.add('dragging');
+    sfx.pick();
+    const r=el.getBoundingClientRect();
+    drag={el,it,dx:ev.clientX-(r.left+r.width/2),dy:ev.clientY-(r.top+r.height/2)};
+    el.setPointerCapture&&el.setPointerCapture(ev.pointerId);moveTo(ev.clientX,ev.clientY);
+  });
+  el.addEventListener('pointermove',ev=>{if(drag&&drag.el===el){ev.preventDefault();moveTo(ev.clientX,ev.clientY);hotCheck(ev.clientX,ev.clientY);}});
+  el.addEventListener('pointerup',ev=>{if(drag&&drag.el===el)drop(ev.clientX,ev.clientY);});
+  el.addEventListener('pointercancel',()=>{if(drag&&drag.el===el)release();});
+}
+function moveTo(cx,cy){const s=stage.getBoundingClientRect();drag.el.style.left=((cx-drag.dx-s.left)/s.width*100)+'%';drag.el.style.top=((cy-drag.dy-s.top)/s.height*100)+'%';}
+function hotCheck(cx,cy){const b=bin.getBoundingClientRect();bin.classList.toggle('hot',cx>b.left-20&&cx<b.right+20&&cy>b.top-20&&cy<b.bottom+20);}
+function drop(cx,cy){const b=bin.getBoundingClientRect();const over=cx>b.left-24&&cx<b.right+24&&cy>b.top-24&&cy<b.bottom+24;bin.classList.remove('hot');if(over)deposit(drag.it,drag.el);else release();}
+
+function floatMsg(txt,color){
+  const b=bin.getBoundingClientRect(),s=stage.getBoundingClientRect();
+  const f=document.createElement('div');f.className='float';f.textContent=txt;f.style.color=color;
+  f.style.left=((b.left+b.width/2-s.left)/s.width*100)+'%';f.style.top=((b.top-s.top)/s.height*100)+'%';
+  stage.appendChild(f);setTimeout(()=>f.remove(),800);
+}
+function removeEl(el){el.style.transition='transform .15s,opacity .15s';el.style.transform='scale(.1)';el.style.opacity='0';setTimeout(()=>el.remove(),150);drag=null;}
+
+function deposit(it,el){
+  // 바다 친구를 넣으면 감점
+  if(el.dataset.bad==='1'){
+    combo=0;critterMiss++;
+    score=Math.max(0,score-CRITTER_PENALTY);
+    document.getElementById('score').textContent=score;
+    floatMsg(`−${CRITTER_PENALTY} ${it.emoji} 바다 친구!`, '#e0574a');
+    sfx.bad();vib(70);
+    bin.classList.add('hot');setTimeout(()=>bin.classList.remove('hot'),150);
+    removeEl(el);return;
+  }
+  combo++;clearTimeout(comboT);comboT=setTimeout(()=>combo=0,1400);
+  const drift=el.dataset.drift==='1';
+  const base=ptsFor(it), mult=(combo>=3?2:1)*(drift?DRIFT_MULT:1), gain=base*mult;
+  score+=gain;itemCount++;document.getElementById('score').textContent=score;
+  caught[it.id]=(caught[it.id]||0)+1;if(!dex[it.id])dex[it.id]=1;if(drift)driftCount++;
+  floatMsg((drift?'🌊 ':'')+'+'+gain+(mult>1&&!drift?' 🔥':(drift?' ×3':'')), drift?'#1478a0':(isBig(it)?'#c77a1e':'#2596b8'));
+  if(drift){sfx.drift();vib([20,30,20]);}else{sfx.drop(isBig(it));vib(15);}
+  bin.classList.add('hot');setTimeout(()=>bin.classList.remove('hot'),150);
+  if(combo>=3){const c=document.getElementById('combo');c.textContent=combo+' COMBO! ×2';c.classList.add('show');clearTimeout(c._t);c._t=setTimeout(()=>c.classList.remove('show'),700);sfx.combo();}
+  removeEl(el);
+}
+function release(){if(!drag)return;const el=drag.el;el.classList.remove('dragging');el._dragging=false;el._kill=setTimeout(()=>{el.style.transition='opacity .3s';el.style.opacity='0';setTimeout(()=>el.remove(),300);},1600);drag=null;}
+
+function endGame(){
+  playing=false;clearInterval(tickTimer);clearTimeout(spawnTimer);drag=null;bin.classList.remove('moving');
+  document.querySelectorAll('.trash').forEach(e=>{if(e._driftTimer)clearInterval(e._driftTimer);e.remove();});
+  lastDur=Date.now()-gameStartTs;
+  sfx.end();vib([30,50,30]);
+  track('game_end',JSON.stringify({score,items:itemCount,drift:driftCount,critter:critterMiss}));
+  sSet('dex',JSON.stringify(dex),false);renderDex();showResult();
+}
+function showResult(){
+  document.getElementById('rScore').textContent=score.toLocaleString();
+  let grade,gc;if(score>=2000){grade='🌟 바다지킴이 마스터';gc='#f4b740';}
+  else if(score>=900){grade='💪 열혈 플로거';gc='#2596b8';}
+  else if(score>=350){grade='🙂 새내기 플로거';gc='#22c3a0';}
+  else{grade='🌱 플로깅 입문';gc='#7392a1';}
+  const g=document.getElementById('rGrade');g.textContent=grade;g.style.background=gc+'22';g.style.color=gc;
+  const sp=document.getElementById('rSpecial');
+  const critNote=critterMiss>0?`<br>🦀 바다 친구를 <b>${critterMiss}번</b> 넣었어요… 다음엔 잘 구분해봐요!`:'';
+  if(driftCount>0){sp.style.background='#e9f5fa';sp.style.borderColor='#cfeaf2';sp.style.color='#2596b8';
+    sp.innerHTML=`🌊 떠내려오는 쓰레기 <b>${driftCount}개</b> 잡았어요! 빠르게 지나가는 걸 잡다니 👏 (×3 보너스)${critNote}`;}
+  else{sp.style.background='#f4f9fb';sp.style.borderColor='#e6eff4';sp.style.color='#7392a1';
+    sp.innerHTML=`바다 위로 <b>빠르게 떠내려오는 쓰레기</b>를 잡으면 ×3 보너스예요. 다음엔 노려보세요 🌊${critNote}`;}
+  document.getElementById('rBreak').innerHTML=Object.entries(caught).sort((a,b)=>b[1]-a[1]).map(([id,n])=>{const it=byId[id];return `<span class="bd">${it.emoji} ${it.name} <span class="n">×${n}</span></span>`;}).join('')||'<span class="bd">아무것도 못 넣었어요 😅</span>';
+  // 결과 UI 초기화 + 자동 갱신
+  document.getElementById('myRank').style.display='none';
+  const sb=document.getElementById('shareBtn');
+  if(rankedBest>=0){
+    // 이미 이번 세션에 등록한 상태 → 더 높은 점수면 자동 갱신
+    sb.disabled=true;
+    if(score>rankedBest){sb.textContent='🏆 자동 갱신됨 ✓';doSubmit(true);}
+    else sb.textContent='🏆 최고 기록 유지 중';
+  } else {sb.disabled=false;sb.textContent='🏆 랭킹 등록';}
+  renderRQ();
+  document.getElementById('resultOv').style.display='flex';
+}
+let rankedBest=-1; // 이번 세션에서 랭킹에 등록된 최고 점수 (-1 = 미등록)
+async function doSubmit(auto){
+  track('rank_submit',auto?'auto':'manual');
+  let res=null,ok=false;
+  try{res=await lbSubmit();ok=true;}catch(e){ok=!API_ON;}
+  if(res){
+    rankedBest=Math.max(rankedBest,res.best||score);
+    if(res.total){
+      const pct=Math.max(1,Math.round(res.rank/res.total*100));
+      const mr=document.getElementById('myRank');
+      mr.innerHTML=`🏅 내 순위 <b>#${res.rank}</b> / ${res.total}명 · <b>상위 ${pct}%</b>${res.best>score?` (최고 기록 ${res.best.toLocaleString()}점 기준)`:''}`;
+      mr.style.display='block';
+    }
+  } else if(ok) rankedBest=Math.max(rankedBest,score); // 로컬 폴백
+  loadLB();
+  return ok;
+}
+document.getElementById('startBtn').addEventListener('click',startGame);
+document.getElementById('againBtn').addEventListener('click',startGame);
+document.getElementById('shareBtn').addEventListener('click',async function(){
+  this.disabled=true;this.textContent='등록 중…';
+  const ok=await doSubmit(false);
+  if(ok){this.textContent='등록됨 ✓';}
+  else{this.disabled=false;this.textContent='↻ 다시 시도';} // 네트워크 실패 시 복구
+});
+// 친구에게 공유 — 모바일: 공유 시트, PC: 링크 복사. 실제 완료 시에만 집계
+document.getElementById('inviteBtn').addEventListener('click',async function(){
+  const btn=this;
+  const url=location.origin+location.pathname;
+  const text=`🏖️ 30초 해변 플로깅에서 ${score.toLocaleString()}점 기록! 너도 도전해볼래?\n실제 해양 쓰레기 데이터로 만든 게임이야.`;
+  const done=(label,kind)=>{track('share',kind);btn.textContent=label;setTimeout(()=>{btn.textContent='📤 친구에게 도전장 보내기';},2200);};
+  if(navigator.share){
+    try{await navigator.share({title:'30초 해변 플로깅',text,url});done('📤 공유 완료!','native');}
+    catch(e){/* 사용자가 공유 시트를 닫음 — 집계 안 함 */}
+    return;
+  }
+  try{
+    await navigator.clipboard.writeText(text+'\n'+url);
+    done('🔗 링크 복사됨 ✓','copy');
+  }catch(e){
+    // 구형 브라우저 폴백
+    const ta=document.createElement('textarea');ta.value=text+'\n'+url;ta.style.position='fixed';ta.style.opacity='0';
+    document.body.appendChild(ta);ta.select();
+    try{document.execCommand('copy');done('🔗 링크 복사됨 ✓','copy');}catch(e2){btn.textContent='복사 실패 — 주소창에서 복사해주세요';}
+    document.body.removeChild(ta);
+  }
+});
+// 1탭 인지 질문 — 세션당 1문항 랜덤 배정, 답하면 다시 안 물음
+// 수치 출처: 국가해안쓰레기모니터링통계(MEIS) 유형별·연도별 (2018~2023, 60개 조사지점)
+const RQ=[
+  {id:'q1',text:'우리나라 해안쓰레기의 <b>87%가 플라스틱</b>이라는 것, 알고 있었나요?'},
+  {id:'q2',text:'이 게임의 쓰레기 등장 확률은 <b>실제 조사된 48만 개 데이터</b>를 그대로 옮긴 거예요. 알고 있었나요?'}
+];
+const RQ_OPTS=[['new','😲 처음 알았어'],['vague','🤔 어렴풋이'],['knew','😎 알고 있었어']];
+let rqAnswered=false,rqId=null;
+async function initRQ(){
+  try{const a=await sGet('rxdone',false);rqAnswered=!!(a&&a.value);}catch(e){}
+  try{const q=await sGet('rxq',false);if(q&&q.value)rqId=q.value;}catch(e){}
+  if(!rqId){rqId=RQ[Math.floor(Math.random()*RQ.length)].id;await sSet('rxq',rqId,false);}
+}
+function renderRQ(){
+  const wrap=document.getElementById('reactWrap');
+  if(rqAnswered){wrap.style.display='none';return;}
+  wrap.style.display='block';
+  const q=RQ.find(x=>x.id===rqId)||RQ[0];
+  wrap.querySelector('.rq').innerHTML=q.text;
+  wrap.querySelector('.reactrow').innerHTML=RQ_OPTS.map(o=>`<button class="reactbtn" data-r="${o[0]}">${o[1]}</button>`).join('');
+  wrap.querySelectorAll('.reactbtn').forEach(btn=>{
+    btn.addEventListener('click',async function(){
+      rqAnswered=true;await sSet('rxdone','1',false);
+      wrap.querySelectorAll('.reactbtn').forEach(b=>b.disabled=true);
+      this.classList.add('sel');
+      track('reaction',q.id+':'+this.dataset.r);
+      wrap.querySelector('.rq').innerHTML='<span class="reactdone">고마워요! 의견이 기록됐어요 ✓</span>';
+    });
+  });
+}
+async function loadLB(){
+  const el=document.getElementById('lb');let data={list:[],total:0};try{data=await lbTop();}catch(e){}
+  const rows=data.list;
+  if(!rows.length){el.innerHTML='<div class="lbempty">아직 기록이 없어요 · 첫 랭커가 되어보세요 🏆</div>';document.getElementById('lbC').textContent='';return;}
+  rows.sort((a,b)=>(b.score-a.score)||((a.ts||0)-(b.ts||0)));
+  document.getElementById('lbC').textContent=data.total+'명';
+  const myT=tagOf(uid);
+  el.innerHTML=rows.slice(0,10).map((r,i)=>{
+    const medal=['🥇','🥈','🥉'][i]||('#'+(i+1));
+    const me=(r.tag!=null)?(r.tag===myT&&r.nick===nick):(r.nick===nick);
+    return `<div class="lbrow ${me?'me':''}"><span class="rk">${medal}</span><span class="who">${emojiFor(r.nick)} ${esc(r.nick)}</span><span class="sc">${(r.score||0).toLocaleString()}</span></div>`;}).join('');
+}
+// 탭에 다시 돌아오면 리더보드 갱신 (10초 스로틀)
+let lastLB=0;
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'&&Date.now()-lastLB>10000){lastLB=Date.now();loadLB();}
+});
+function esc(s){return (s||'').replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));}
+async function initPromo(){
+  if(SERVICE_URL){const a=document.getElementById('svcLink');a.href=SERVICE_URL;a.style.display='inline-block';a.addEventListener('click',()=>track('svc_click'));}
+  document.querySelector('.pm-btn.data').addEventListener('click',()=>track('meis_click'));
+  const c=await likeGet();document.getElementById('likeCount').textContent=c.toLocaleString();
+  let liked=false;try{const g=await sGet('liked',false);liked=!!(g&&g.value);}catch(e){}
+  const btn=document.getElementById('likeBtn');if(liked)btn.classList.add('done');
+  btn.addEventListener('click',async()=>{let already=false;try{const g=await sGet('liked',false);already=!!(g&&g.value);}catch(e){}if(already)return;
+    await sSet('liked','1',false);btn.classList.add('done');track('like');await likeAdd();const n=await likeGet();document.getElementById('likeCount').textContent=n.toLocaleString();});
+}
+// 인사이트 카드 실제 노출 측정 (세션당 1회)
+(function(){
+  const card=document.getElementById('ins')?.closest('.card');if(!card||!('IntersectionObserver' in window))return;
+  let seen=false;
+  const io=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting&&!seen){seen=true;track('insight_view');io.disconnect();}});},{threshold:0.6});
+  io.observe(card);
+})();
+boot();initPromo();
+</script>
+</body>
+</html>

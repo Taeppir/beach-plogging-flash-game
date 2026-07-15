@@ -1,0 +1,13 @@
+name = "plogging-api"
+main = "api/worker.js"
+compatibility_date = "2025-01-01"
+
+# D1 데이터베이스 바인딩 — 코드에서 env.DB 로 접근
+# database_id 는 아래 안내대로 본인 값으로 교체해야 함
+[[d1_databases]]
+binding = "DB"
+database_name = "plogging-db"
+database_id = "여기에_본인_D1_database_id_붙여넣기"
+
+# STATS_KEY 는 시크릿이므로 이 파일에 넣지 않는다.
+# Cloudflare 대시보드 또는 CLI로 별도 등록 (아래 안내 참고).
