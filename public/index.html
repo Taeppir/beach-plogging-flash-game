@@ -649,9 +649,9 @@ async function makeShareCard(g,sc){
   ctx.fillText(sc.toLocaleString()+'점',W/2,924);
   // 푸터 (데이터 출처)
   ctx.fillStyle='#2a5566';ctx.font='700 26px '+CARD_FONT;
-  ctx.fillText('🌊 해안쓰레기의 87%는 플라스틱',W/2,996);
+  ctx.fillText('🌊 해안쓰레기의 87.4%는 플라스틱이라는 사실!',W/2,996);
   ctx.fillStyle='rgba(42,85,102,.78)';ctx.font='600 21px '+CARD_FONT;
-  ctx.fillText('실제 공공데이터 · MEIS',W/2,1034);
+  ctx.fillText('해양환경정보포털 국가 해안 쓰레기 모니터링 통계 공공데이터',W/2,1034);
   return await new Promise((res,rej)=>{cv.toBlob(b=>b?res(b):rej(new Error('toBlob null')),'image/png');});
 }
 // 이미지 공유 미지원 환경: 카드 미리보기 모달(저장·링크복사)
