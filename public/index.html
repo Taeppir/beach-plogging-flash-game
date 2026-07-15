@@ -527,9 +527,9 @@ function endGame(){
 }
 function showResult(){
   document.getElementById('rScore').textContent=score.toLocaleString();
-  let grade;if(score>=2000)grade='🌟 바다지킴이 마스터';
-  else if(score>=900)grade='💪 열혈 플로거';
-  else if(score>=350)grade='🙂 새내기 플로거';
+  let grade;if(score>=10000)grade='🌟 바다지킴이 마스터';
+  else if(score>=6000)grade='💪 열혈 플로거';
+  else if(score>=1000)grade='🙂 새내기 플로거';
   else grade='🌱 플로깅 입문';
   document.getElementById('rGrade').textContent=grade;
   const sp=document.getElementById('rSpecial');
@@ -575,9 +575,9 @@ document.getElementById('shareBtn').addEventListener('click',async function(){
 // ===== 공유용 개인 등급 카드 이미지 =====
 // 점수 → 등급(캐릭터). 결과 화면(showResult)과 동일한 기준을 공유용으로 별도 산출.
 function gradeForScore(s){
-  if(s>=2000)return{n:4,emoji:'🌟',name:'바다지킴이 마스터'};
-  if(s>=900) return{n:3,emoji:'💪',name:'열혈 플로거'};
-  if(s>=350) return{n:2,emoji:'🙂',name:'새내기 플로거'};
+  if(s>=10000)return{n:4,emoji:'🌟',name:'바다지킴이 마스터'};
+  if(s>=6000) return{n:3,emoji:'💪',name:'열혈 플로거'};
+  if(s>=1000) return{n:2,emoji:'🙂',name:'새내기 플로거'};
   return       {n:1,emoji:'🌱',name:'플로깅 입문'};
 }
 const GRADE_IMG={1:'images/grade-1.png',2:'images/grade-2.png',3:'images/grade-3.png',4:'images/grade-4.png'};
