@@ -647,6 +647,14 @@ function spawn(){
   else if(r<0.34)spawnCritter();
   else spawnOne(false);
 }
+// 일정 시간 뒤 페이드아웃 후 제거. 잡고 있는 동안엔 뺏지 않는다(드래그 중이면 취소).
+function fadeKill(el,ms){
+  return setTimeout(()=>{
+    if(el._dragging)return;
+    el.style.transition='opacity .3s';el.style.opacity='0';
+    setTimeout(()=>el.remove(),300);
+  },ms);
+}
 function spawnCritter(){
   const it=CRITTERS[Math.floor(Math.random()*CRITTERS.length)];
   const el=document.createElement('div');
@@ -654,7 +662,7 @@ function spawnCritter(){
   el.dataset.id=it.id;el.dataset.bad='1';
   paintSprite(el,it);
   const x=8+Math.random()*78, y=56+Math.random()*36; el.style.left=x+'%';el.style.top=y+'%';
-  el._kill=setTimeout(()=>{if(el._dragging)return;el.style.transition='opacity .3s';el.style.opacity='0';setTimeout(()=>el.remove(),300);},2600);
+  el._kill=fadeKill(el,2600);
   attachDrag(el,it);stage.appendChild(el);
 }
 // 스프라이트로 그리되, PNG가 안 뜨면 기존 이모지로 되돌린다(.sprite를 떼면 .trash의 34px가 적용됨)
@@ -677,7 +685,7 @@ function spawnOne(drift){
     el._driftTimer=setInterval(()=>{x+=dir*1.7;el.style.left=x+'%';if(x<-14||x>114){clearInterval(el._driftTimer);el.remove();}},28);
   } else {
     const x=8+Math.random()*78, y=56+Math.random()*36; el.style.left=x+'%';el.style.top=y+'%';
-    el._kill=setTimeout(()=>{if(el._dragging)return;el.style.transition='opacity .3s';el.style.opacity='0';setTimeout(()=>el.remove(),300);},2600);
+    el._kill=fadeKill(el,2600);
   }
   attachDrag(el,it);stage.appendChild(el);
 }
@@ -731,7 +739,7 @@ function deposit(it,el){
   if(combo>=3){const c=document.getElementById('combo');c.textContent=combo+' COMBO! ×2';c.classList.add('show');clearTimeout(c._t);c._t=setTimeout(()=>c.classList.remove('show'),700);sfx.combo();}
   removeEl(el);
 }
-function release(){if(!drag)return;const el=drag.el;el.classList.remove('dragging');el._dragging=false;el._kill=setTimeout(()=>{el.style.transition='opacity .3s';el.style.opacity='0';setTimeout(()=>el.remove(),300);},1600);drag=null;}
+function release(){if(!drag)return;const el=drag.el;el.classList.remove('dragging');el._dragging=false;el._kill=fadeKill(el,1600);drag=null;}
 
 function endGame(){
   playing=false;clearInterval(tickTimer);clearTimeout(spawnTimer);drag=null;bin.classList.remove('moving');
@@ -875,7 +883,7 @@ async function copyText(s){
   try{const ta=document.createElement('textarea');ta.value=s;ta.style.position='fixed';ta.style.opacity='0';
     document.body.appendChild(ta);ta.select();const ok=document.execCommand('copy');document.body.removeChild(ta);return ok;}catch(e){return false;}
 }
-// 카드 생성이 완전히 실패할 때의 최종 폴백 — 기존 텍스트/링크 공유
+// 카드 로드가 실패할 때의 최종 폴백 — 텍스트/링크만 공유
 async function shareTextFallback(text,url,btn){
   const done=(label,kind)=>{track('share',kind);btn.textContent=label;setTimeout(()=>{btn.disabled=false;btn.textContent='📤 친구에게 도전장 보내기';},2200);};
   if(navigator.share){
@@ -944,7 +952,9 @@ function renderRQ(){
     });
   });
 }
-// ===== 우리 바다 퀴즈 — 3문항 가로 캐러셀. 판정은 전부 프론트(ans 상수), 서버 집계 없음 =====
+// ===== 우리 바다 퀴즈 — 3문항 가로 캐러셀 =====
+// 정답 판정은 프론트(아래 ans)에서만 한다. 다만 결과는 track('quiz')로 집계된다 —
+// worker는 정답키를 모르고 payload에 실린 correct/wrong만 읽는다(onAnswer 주석 참고).
 // 해설 수치는 전부 위 ITEMS에서 나온 것이라 데이터를 고치면 해설도 같이 고쳐야 한다.
 // 전부 2018~2023년(6년) 조사 기준이고, 그 '6년'은 ITEMS에 없는 상수라 여기서만 곱해진다:
 //   q1  23톤·3.9톤   = 전 재질 wt 합 23,450.8kg(=23.45톤), 그리고 그걸 6년으로 나눈 3.908톤
@@ -1073,13 +1083,19 @@ document.addEventListener('visibilitychange',()=>{
 });
 function esc(s){return (s||'').replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));}
 async function initPromo(){
-  if(SERVICE_URL){const a=document.getElementById('svcLink');a.href=SERVICE_URL;a.style.display='inline-block';a.addEventListener('click',()=>track('svc_click'));}
+  // svcLink는 현재 HTML에서 주석 처리돼 있다 — 요소 확인 없이 쓰면 SERVICE_URL을 채우는 순간
+  // null 참조로 initPromo 전체가 죽어 좋아요·링크공유 버튼까지 안 붙는다.
+  const svc=SERVICE_URL&&document.getElementById('svcLink');
+  if(svc){svc.href=SERVICE_URL;svc.style.display='inline-block';svc.addEventListener('click',()=>track('svc_click'));}
   document.querySelector('.pm-btn.data').addEventListener('click',()=>track('meis_click'));
   const c=await likeGet();document.getElementById('likeCount').textContent=c.toLocaleString();
   let liked=false;try{const g=await sGet('liked',false);liked=!!(g&&g.value);}catch(e){}
   const btn=document.getElementById('likeBtn');if(liked)btn.classList.add('done');
+  // likeAdd()가 이미 name='like' 행을 남긴다 — track('like')를 같이 부르면 한 번의 좋아요가 2행이 된다.
+  // 집계는 COUNT(DISTINCT uid)라 숫자는 같지만 요청·쓰기만 2배가 됐다. likeAdd만 남긴 이유는
+  // await로 쓰기가 끝난 뒤 likeGet()이 갱신된 수를 읽어야 해서(track은 beacon이라 완료를 못 기다린다).
   btn.addEventListener('click',async()=>{let already=false;try{const g=await sGet('liked',false);already=!!(g&&g.value);}catch(e){}if(already)return;
-    await sSet('liked','1',false);btn.classList.add('done');track('like');await likeAdd();const n=await likeGet();document.getElementById('likeCount').textContent=n.toLocaleString();});
+    await sSet('liked','1',false);btn.classList.add('done');await likeAdd();const n=await likeGet();document.getElementById('likeCount').textContent=n.toLocaleString();});
   // 링크 공유 — 결과 카드 공유(inviteBtn)와 달리 이미지 없이 게임 링크만. 공유 시트 → 실패 시 클립보드 복사
   const sb=document.getElementById('linkShareBtn');
   sb.addEventListener('click',async()=>{

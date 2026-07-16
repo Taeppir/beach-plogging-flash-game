@@ -154,11 +154,15 @@ async function likes(env) {
   return json({ count: r.c || 0 });
 }
 
+// uid당 1행만 남긴다 — likes()가 COUNT(DISTINCT uid)라 중복 행은 집계에 안 잡히면서
+// D1 쓰기 한도만 갉아먹는다. 같은 uid의 재요청은 조용히 무시(응답은 동일).
 async function like(req, env) {
   const b = await req.json().catch(() => ({}));
   const uid = typeof b.uid === 'string' ? b.uid.slice(0, 64) : 'anon';
   await env.DB.prepare(
-    "INSERT INTO events (uid, sess, name, data, ts) VALUES (?1, '', 'like', NULL, ?2)"
+    `INSERT INTO events (uid, sess, name, data, ts)
+     SELECT ?1, '', 'like', NULL, ?2
+     WHERE NOT EXISTS (SELECT 1 FROM events WHERE uid = ?1 AND name = 'like')`
   ).bind(uid, Date.now()).run();
   return json({ ok: true });
 }

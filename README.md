@@ -48,7 +48,7 @@
 public/          ← 게임 (Cloudflare Pages로 배포)
   index.html       메인 게임
   stats.html       발표용 지표 대시보드
-  images/          등급별 캐릭터 카드 이미지
+  images/          공유용 감사 카드 이미지 3종(랜덤 노출)
 api/             ← API (Cloudflare Workers로 배포)
   worker.js        랭킹 + 이벤트 수집 + 통계 집계
 wrangler.toml    ← Worker 배포 설정 (D1 바인딩)
