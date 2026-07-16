@@ -30,10 +30,8 @@
   .sun{position:absolute;top:18px;right:26px;width:40px;height:40px;border-radius:50%;background:radial-gradient(circle,#ffe58a,#ffd35c);box-shadow:0 0 26px #ffe08a;z-index:1}
   .cloud{position:absolute;font-size:26px;opacity:.9;animation:drift 22s linear infinite;z-index:1}
   @keyframes drift{from{transform:translateX(-60px)}to{transform:translateX(500px)}}
-  /* 배경 생물 — .fish는 바다 위를 헤엄치고, .seabed는 바다 바닥에 고정. 둘 다 장식이라
-     클릭 대상이 아니고 게임 오브젝트(.trash, z-index 3)보다 뒤에 깔린다. */
-  .fish,.seabed{position:absolute;width:40px;height:40px;object-fit:contain;image-rendering:auto;opacity:.85;z-index:1;pointer-events:none;-webkit-user-drag:none}
-  .fish{animation:swim linear infinite;transform:scaleX(-1)}
+  /* 배경 생물 — 바다 위를 헤엄치는 장식. 클릭 대상이 아니고 게임 오브젝트(.trash, z-index 3)보다 뒤에 깔린다. */
+  .fish{position:absolute;width:40px;height:40px;object-fit:contain;image-rendering:auto;opacity:.85;z-index:1;pointer-events:none;-webkit-user-drag:none;animation:swim linear infinite;transform:scaleX(-1)}
   @keyframes swim{from{transform:translateX(-40px) scaleX(-1)}to{transform:translateX(500px) scaleX(-1)}}
   .seaShine{position:absolute;left:0;right:0;top:29%;height:23%;z-index:1;opacity:.4;pointer-events:none}
   .seaShine svg{width:200%;height:100%;animation:waveMove 7s linear infinite}
@@ -91,6 +89,7 @@
   .grade-tag{display:inline-block;font-size:13px;font-weight:800;padding:7px 18px;border-radius:999px;margin:12px 0 0;background:var(--sky);color:#fff;box-shadow:0 4px 12px rgba(43,167,199,.28)}
   .breakdown{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:13px 0 0}
   .bd{background:#f4f9fb;border-radius:10px;padding:5px 9px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:4px}.bd .n{color:var(--muted);font-weight:700}
+  .bd img{width:18px;height:18px;object-fit:contain;image-rendering:auto;flex:none}
   .special{font-size:12px;color:var(--muted);line-height:1.45;margin:11px 0 0;font-weight:600}
   .special b{color:var(--sky)}
   .rbtns{display:flex;gap:9px;margin-top:15px}.rbtns button{flex:1;font-family:var(--sans);font-size:14px;font-weight:800;padding:13px;border-radius:14px;cursor:pointer;border:none;min-height:44px}
@@ -104,6 +103,7 @@
   .ins{display:flex;flex-direction:column;gap:8px}
   .insrow{display:flex;align-items:center;gap:9px}
   .insrow .em{font-size:17px;width:22px;text-align:center}
+  .insrow .em img{width:22px;height:22px;object-fit:contain;image-rendering:auto;display:block}
   .insrow .nm{font-size:12px;font-weight:600;width:58px;flex:none}
   .insrow .track{flex:1;height:16px;background:#f0f6f9;border-radius:8px;overflow:hidden;display:block}
   .insrow .fill{display:block;height:100%;border-radius:8px;min-width:6px;transition:width .6s}
@@ -111,6 +111,8 @@
   .insnote{font-size:11px;color:var(--faint);margin-top:11px;line-height:1.5}
   .dexrow{display:flex;flex-wrap:wrap;gap:9px}
   .dcell{width:52px;text-align:center}.dcell .e{font-size:26px;filter:grayscale(1) opacity(.3)}.dcell.got .e{filter:none}
+  /* 미수집 실루엣은 .e의 filter가 img 자식에도 그대로 상속된다 */
+  .dcell .e img{width:32px;height:32px;object-fit:contain;image-rendering:auto;display:block;margin:0 auto}
   .dcell .l{font-size:9.5px;color:var(--faint);margin-top:2px}.dcell.got .l{color:var(--muted)}
   .lb{display:flex;flex-direction:column;gap:7px}
   .lbrow{display:flex;align-items:center;gap:10px;background:#f4f9fb;border-radius:12px;padding:9px 12px}
@@ -178,7 +180,6 @@
     <img class="fish" data-c="penguin" alt="" style="top:35%;animation-duration:13s;animation-delay:-3s">
     <img class="fish" data-c="stripe" alt="" style="top:39%;animation-duration:15s;animation-delay:-6s">
     <img class="fish" data-c="sealion" alt="" style="top:43%;animation-duration:17s;animation-delay:-9s">
-    <img class="seabed" data-c="redcoral" alt="" style="top:43.5%;left:11%">
     <div class="band-lbl" style="top:54%;color:rgba(120,95,50,.5)">SAND</div>
     <div class="hud">
       <div class="pill time">⏱️ <span id="tsec">30</span><span class="bar"><i id="tbar"></i></span></div>
@@ -191,7 +192,7 @@
       <div class="panel">
         <h2>🏖️ 해변을 지켜주세요!</h2>
         <div class="lead">떠밀려온 쓰레기를 <b>끌어다 쓰레기통에</b> 넣어요.</div>
-        <div class="lead">🌊 바다에서 떠내려오는 쓰레기는 점수 <b>3배</b>!</br>🦀🐚🐢 <b>바다 친구들</b>을 넣으면 <b>감점</b> - 쓰레기만 골라 담아요!</div>
+        <div class="lead">🌊 바다에서 떠내려오는 쓰레기는 점수 <b>3배</b>!</br><b>게·산호</b> 같은 바다 생물을 넣으면 <b>감점</b> - 쓰레기만 골라 담아요!</div>
         <div class="nickrow"><span id="nickEmo">🐚</span> <input id="nick" maxlength="10" placeholder="닉네임"><button class="dice" id="diceBtn" aria-label="새 닉네임">🎲</button></div>
         <button class="bigbtn" id="startBtn">플로깅 시작</button>
       </div>
@@ -245,7 +246,7 @@
     <div class="pm-fb"><span>이 게임 어땠어요?</span><button class="likebtn" id="likeBtn">👍 좋아요 <b id="likeCount">0</b></button></div>
   </div>
 
-  <footer><b>🗑️ 점수 규칙</b> — 점수는 그 쓰레기의 <b>실제 발생 확률이 낮을수록 높아요</b>(통계 기반). 바다 위로 떠내려오는 쓰레기를 잡으면 ×3 보너스. 🦀🐚🐢 바다 생물을 넣으면 <b>−80점 감점</b>과 콤보 초기화. <br>*데이터 출처: 해양환경정보포털(MEIS) 국가해안쓰레기 모니터링통계/footer>
+  <footer><b>🗑️ 점수 규칙</b> — 점수는 그 쓰레기의 <b>실제 발생 확률이 낮을수록 높아요</b>(통계 기반). 바다 위로 떠내려오는 쓰레기를 잡으면 ×3 보너스. 게(칠게)·산호(검붉은수지맨드라미·착생깃산호) 같은 바다 생물을 넣으면 <b>−80점 감점</b>과 콤보 초기화. <br>*데이터 출처: 해양환경정보포털(MEIS) 국가해안쓰레기 모니터링통계/footer>
 </div>
 
 <!-- 공유 카드 미리보기 모달 — 이미지 첨부 공유가 안 되는 환경(PC·카톡 인앱브라우저 등)에서 표시 -->
@@ -283,12 +284,12 @@ function rollItem(){let r=Math.random()*totalPct,a=0;for(const it of ITEMS){a+=i
 const DRIFT_MULT=3, CRITTER_PENALTY=80;
 // 보호종 단일 소스 — 이름·파일·서식지. habitat이 곧 분류다:
 //   sea    = 물 위를 떠다니는 배경 (클릭X, 감점X)
-//   seabed = 바다 바닥 고정 장식 (클릭X, 감점X, 안 움직임)
 //   sand   = 스폰되는 감점 오브젝트 (통에 넣으면 −80)
+//   none   = 게임 화면에 안 나옴 (도감 전용)
 //   fixed  = 산호라 스폰돼도 그 자리에 가만히(bob 없음). emoji는 PNG 로드 실패 시 폴백.
 const CREATURES={
-  redcoral:{name:'검붉은수지맨드라미',img:'assets/creatures/creatures_redcoral.png',habitat:'seabed',emoji:'🪸'},
-  bigmouth:{name:'넓적부리도요',img:'assets/creatures/creatures_bigmouth.png',habitat:'sand',emoji:'🐦'},
+  redcoral:{name:'검붉은수지맨드라미',img:'assets/creatures/creatures_redcoral.png',habitat:'sand',emoji:'🪸',fixed:true},
+  bigmouth:{name:'넓적부리도요',img:'assets/creatures/creatures_bigmouth.png',habitat:'none',emoji:'🐦'},
   penguin:{name:'바다오리',img:'assets/creatures/creatures_penguin.png',habitat:'sea',emoji:'🐧'},
   turtle:{name:'장수거북',img:'assets/creatures/creatures_turtle.png',habitat:'sea',emoji:'🐢'},
   feathercoral:{name:'착생깃산호',img:'assets/creatures/creatures_feathercoral.png',habitat:'sand',emoji:'🪸',fixed:true},
@@ -304,19 +305,26 @@ document.querySelectorAll('img[data-c]').forEach(el=>{
   if(c){el.src=c.img;el.alt=c.name;}
 });
 
+// 리스트 UI(도감·인사이트·결과)용 스프라이트 — 크기는 각 자리의 CSS가 정한다.
+function spriteTag(it){return `<img src="${it.img}" alt="" data-emoji="${it.emoji}">`;}
+// innerHTML로 심은 직후에 호출. error 이벤트는 항상 비동기라 이 시점에 붙여도 놓치지 않는다.
+function wireSprites(root){root.querySelectorAll('img[data-emoji]').forEach(img=>{img.onerror=()=>img.replaceWith(img.dataset.emoji);});}
+
 // insight bars — 길이는 비교용(제곱근 스케일)로 작은 값도 구분, 색=희귀도, 정확한 값은 % 라벨
 (function(){
   const sorted=[...ITEMS].sort((a,b)=>b.pct-a.pct), n=sorted.length;
   const sq=sorted.map(it=>Math.sqrt(it.pct)), mxs=Math.max(...sq);
   const L=(a,b,t)=>Math.round(a+(b-a)*t);
-  document.getElementById('ins').innerHTML=sorted.map((it,i)=>{
+  const ins=document.getElementById('ins');
+  ins.innerHTML=sorted.map((it,i)=>{
     const t=i/(n-1);
     const c=`rgb(${L(64,255,t)},${L(170,111,t)},${L(214,97,t)})`;
     const w=Math.max(7, Math.sqrt(it.pct)/mxs*100);
-    return `<div class="insrow"><span class="em">${it.emoji}</span><span class="nm">${it.name}</span>
+    return `<div class="insrow"><span class="em">${spriteTag(it)}</span><span class="nm">${it.name}</span>
      <span class="track"><span class="fill" style="width:${w}%;background:${c}"></span></span>
      <span class="pc" style="color:${c}">${it.pct}%</span></div>`;
   }).join('');
+  wireSprites(ins);
 })();
 
 // ===== storage: sessionStorage(탭 세션) — 탭 닫으면 초기화, 랭킹 서버에만 닉네임·점수가 남음 =====
@@ -459,7 +467,9 @@ function ensureNick(){
   inp.value=nick;sSet('nick',nick,false);
 }
 function renderDex(){
-  document.getElementById('dexrow').innerHTML=ITEMS.map(it=>{const got=dex[it.id];return `<div class="dcell ${got?'got':''}"><div class="e">${it.emoji}</div><div class="l">${got?it.name:'???'}</div></div>`;}).join('');
+  const row=document.getElementById('dexrow');
+  row.innerHTML=ITEMS.map(it=>{const got=dex[it.id];return `<div class="dcell ${got?'got':''}"><div class="e">${spriteTag(it)}</div><div class="l">${got?it.name:'???'}</div></div>`;}).join('');
+  wireSprites(row);
   document.getElementById('dexC').textContent=Object.keys(dex).length+'/9';
 }
 
@@ -548,12 +558,12 @@ function floatMsg(txt,color){
 function removeEl(el){el.style.transition='transform .15s,opacity .15s';el.style.transform='scale(.1)';el.style.opacity='0';setTimeout(()=>el.remove(),150);drag=null;}
 
 function deposit(it,el){
-  // 바다 친구를 넣으면 감점
+  // 바다 생물을 넣으면 감점
   if(el.dataset.bad==='1'){
     combo=0;critterMiss++;
     score=Math.max(0,score-CRITTER_PENALTY);
     document.getElementById('score').textContent=score;
-    floatMsg(`−${CRITTER_PENALTY} ${it.emoji} 바다 친구!`, '#e0574a');
+    floatMsg(`−${CRITTER_PENALTY} ${it.emoji} 바다 생물!`, '#e0574a');
     sfx.bad();vib(70);
     bin.classList.add('hot');setTimeout(()=>bin.classList.remove('hot'),150);
     removeEl(el);return;
@@ -589,7 +599,9 @@ function showResult(){
   const sp=document.getElementById('rSpecial');
   if(driftCount>0)sp.innerHTML=`🌊 떠내려온 쓰레기 <b>${driftCount}개</b> · <b>×3 보너스</b>`;
   else sp.innerHTML=`🌊 떠내려오는 쓰레기는 <b>×3 보너스</b>`;
-  document.getElementById('rBreak').innerHTML=Object.entries(caught).sort((a,b)=>b[1]-a[1]).map(([id,n])=>{const it=byId[id];return `<span class="bd">${it.emoji} ${it.name} <span class="n">×${n}</span></span>`;}).join('')||'<span class="bd">아무것도 못 넣었어요 😅</span>';
+  const bk=document.getElementById('rBreak');
+  bk.innerHTML=Object.entries(caught).sort((a,b)=>b[1]-a[1]).map(([id,n])=>{const it=byId[id];return `<span class="bd">${spriteTag(it)} ${it.name} <span class="n">×${n}</span></span>`;}).join('')||'<span class="bd">아무것도 못 넣었어요 😅</span>';
+  wireSprites(bk);
   // 결과 UI 초기화 + 자동 갱신
   document.getElementById('myRank').style.display='none';
   const sb=document.getElementById('shareBtn');
