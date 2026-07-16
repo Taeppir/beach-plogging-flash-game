@@ -95,19 +95,33 @@
   .combo{position:absolute;top:56px;left:50%;transform:translateX(-50%);z-index:6;font-family:var(--sans);font-weight:700;color:#fff;font-size:15px;opacity:0;transition:.15s;pointer-events:none;text-shadow:2px 2px 0 rgba(20,40,50,.5)}
   .combo.show{opacity:1;transform:translateX(-50%) scale(1.15)}
 
-  .overlay{position:absolute;inset:0;background:rgba(18,36,45,.42);display:flex;align-items:center;justify-content:center;padding:18px;z-index:20;overflow-y:auto;touch-action:pan-y;-webkit-overflow-scrolling:touch}
-  .panel{background:var(--panel);border:4px solid var(--outline);padding:22px 20px;width:100%;box-shadow:var(--sh);text-align:center;margin:auto;word-break:keep-all}
+  .overlay{position:absolute;inset:0;background:rgba(18,36,45,.42);display:flex;align-items:center;justify-content:center;padding:12px;z-index:20;overflow-y:auto;touch-action:pan-y;-webkit-overflow-scrolling:touch}
+  .panel{background:var(--panel);border:4px solid var(--outline);padding:14px 16px;width:100%;box-shadow:var(--sh);text-align:center;margin:auto;word-break:keep-all}
   .panel h2{font-family:var(--sans);font-size:18px;font-weight:700;line-height:1.4}
-  .panel .lead{font-size:12px;color:var(--muted);margin:11px 0 0;line-height:1.75}
+  .panel .lead{font-size:12px;color:var(--muted);margin:8px 0 0;line-height:1.7}
   .panel .lead b{color:var(--ink)}
-  .nickrow{display:flex;align-items:center;gap:8px;justify-content:center;margin:16px 0}
-  .nickrow input{border:3px solid var(--outline);padding:8px 11px;font-family:var(--sans);font-size:12px;font-weight:700;width:196px;min-width:0;text-align:center;outline:none;background:#fff}
+  /* 핵심 점수 규칙 — ptsFor()가 pct의 역수라는 걸 플레이어 말로 옮긴 것. 숫자를 바꾸려면 ITEMS를 본다. */
+  .panel .rule{margin:8px 0 0;padding:7px 8px;background:var(--sky-soft);border:2px solid var(--outline)}
+  .panel .rule-hi{font-size:13px;color:var(--ink);line-height:1.45}
+  .panel .rule-ex{font-size:11px;color:var(--muted);margin-top:4px;line-height:1.5}
+  .panel .rule-ex b{color:var(--teal-d)}
+  /* 닉네임 영역 2단 — 1단 썸네일(가운데), 2단 [입력 36px][주사위 32px]. 주사위는 보조 버튼이라 입력보다 작게 두고 세로 가운데 정렬. */
+  .nickrow{display:flex;flex-direction:column;align-items:center;gap:8px;margin:10px 0}
+  .nickform{display:flex;align-items:center;gap:8px;justify-content:center;width:100%}
+  .nickrow input{border:3px solid var(--outline);padding:8px 11px;font-family:var(--sans);font-size:12px;font-weight:700;width:196px;min-width:0;height:36px;text-align:center;outline:none;background:#fff}
   /* 닉네임 옆 생물 썸네일 — 스프라이트라 image-rendering은 auto(픽셀화 금지) */
   .nick-ico{width:22px;height:22px;object-fit:contain;image-rendering:auto;flex:0 0 auto;vertical-align:middle}
   .nick-ico-fb{width:22px;height:22px;font-size:18px;line-height:22px;flex:0 0 auto;text-align:center;vertical-align:middle}
+  /* 시작 화면 썸네일만 56px(원본 512px이라 확대해도 깨지지 않는다). 위 22px 기본값은 랭킹 행이 nickIcoHTML로
+     함께 쓰므로 절대 못 건드린다. syncNickIcon()·nickIcoFail()이 요소를 새로 만들어도 id는 넘겨주므로 #nickIco가 유일하게 안전한 훅. */
+  #nickIco{width:56px;height:56px}
+  #nickIco.nick-ico-fb{font-size:44px;line-height:56px}
   .nickrow input:focus{border-color:var(--teal);box-shadow:2px 2px 0 rgba(38,153,189,.3)}
-  .dice{font-family:var(--sans);font-size:16px;border:3px solid var(--outline);background:#fff;width:40px;height:40px;cursor:pointer;transition:transform .1s;box-shadow:2px 2px 0 rgba(22,36,45,.2)}
-  .dice:active{transform:translate(2px,2px);box-shadow:none}
+  /* 주사위 — .bigbtn과 같은 픽셀 버튼(테두리+오프셋 그림자+눌림). 색만 흰 바탕용 중립 그림자.
+     flex:0 0 auto라야 좁은 화면에서 입력이 줄어드는 동안 정사각이 유지된다.
+     top:-2px는 시각 보정 — 그림자가 아래로만 뻗어 박스를 가운데 둬도 처져 보인다(레이아웃은 안 밀린다). */
+  .dice{font-family:var(--sans);font-size:15px;border:2px solid var(--outline);background:#fff;width:32px;height:32px;flex:0 0 auto;cursor:pointer;position:relative;top:-2px;box-shadow:0 3px 0 #c3d4d3,0 3px 0 2px var(--outline);transition:transform .08s,box-shadow .08s}
+  .dice:active{transform:translateY(2px);box-shadow:0 1px 0 #c3d4d3,0 1px 0 2px var(--outline)}
   .bigbtn{font-family:var(--sans);font-size:16px;font-weight:700;color:#fff;background:var(--teal);border:3px solid var(--outline);padding:12px 30px;cursor:pointer;box-shadow:0 5px 0 var(--teal-d),0 5px 0 3px var(--outline);transition:transform .08s,box-shadow .08s}
   .bigbtn:active{transform:translateY(3px);box-shadow:0 2px 0 var(--teal-d),0 2px 0 3px var(--outline)}
   .howto{font-family:var(--sans);font-size:10px;color:var(--faint);margin-top:14px;line-height:1.7}
@@ -199,9 +213,14 @@
      본문은 Pretendard(--sans)가 기본이고, '크고 굵은 것'만 여기서 Galmuri11로 덮는다.
      개별 규칙과 셀렉터가 동일해 나중에 선언된 이 블록이 이긴다 — 폰트를 바꾸려면 여기만 고치면 된다.
      AA를 함께 꺼야 픽셀이 뭉개지지 않는다(본문은 body에서 antialiased).
-     13~14px이라 '16px 미만' 보조 기준엔 걸리지만, 명시적으로 헤더·버튼 라벨·HUD·등급인 것은 포함했다. */
+     13~14px이라 '16px 미만' 보조 기준엔 걸리지만, 명시적으로 헤더·버튼 라벨·HUD·등급인 것은 포함했다.
+     .rule-hi도 같은 이유로 포함 — 규칙 한 줄짜리 강조고, 풀어쓴 예시(.rule-ex)가 바로 아래 Pretendard로 따라붙는다.
+     이름이 Galmuri'11'이지만 픽셀 그리드는 11의 배수가 아니라 12의 배수다(unitsPerEm 1200, 글리프 좌표가 전부
+     100 단위 = em당 12픽셀). 즉 획이 완전히 균일한 크기는 12·24·36px뿐이고, 22px은 1.83배라 13px(1.08배)보다
+     오히려 더 뭉개진다. 여기 13px들은 어긋난 배율이지만 DPR 2~3 모바일에선 오차가 서브픽셀이라 보이지 않는다. */
   .top h1,.panel h2,.card .h .t,.promo .pm-t,.shareModal-title,     /* 타이틀·헤더 */
   .bigbtn,.rbtns button,.invite,.pm-btn,.shareModal-btn,.likebtn,   /* 버튼 라벨 */
+  .panel .rule-hi,                                                  /* 시작 팝업 핵심 규칙 */
   .hud .pill,                                                       /* HUD 점수·타이머 */
   .grade-tag,                                                       /* 등급 이름 */
   .combo,.score-big                                                 /* 콤보·최종 점수 */
@@ -239,8 +258,15 @@
       <div class="panel">
         <h2>🏖️ 해변을 지켜주세요!</h2>
         <div class="lead">떠밀려온 쓰레기를 <b>끌어다 쓰레기통에</b> 넣어요.</div>
-        <div class="lead">🌊 바다에서 떠내려오는 쓰레기는 점수 <b>3배</b>!</br><b>게·산호</b> 같은 바다 생물을 넣으면 <b>감점</b> - 쓰레기만 골라 담아요!</div>
-        <div class="nickrow"><span id="nickIco" class="nick-ico-fb">🐚</span> <input id="nick" maxlength="16" placeholder="닉네임"><button class="dice" id="diceBtn" aria-label="새 닉네임">🎲</button></div>
+        <div class="rule">
+          <div class="rule-hi">🗑️ 적게 버려지는 쓰레기일수록 고득점!</div>
+          <div class="rule-ex">흔한 <b>플라스틱</b>은 기본점, 드문 <b>고무</b>는 최고점</div>
+        </div>
+        <div class="lead">🌊 바다에서 떠내려오는 쓰레기는 점수 <b>3배</b>!</br>살아있는 바다 생물을 담으면 <b>−100점 감점!</b> 쓰레기만 골라 주워요</div>
+        <div class="nickrow">
+          <span id="nickIco" class="nick-ico-fb">🐚</span>
+          <div class="nickform"><input id="nick" maxlength="16" placeholder="닉네임"><button class="dice" id="diceBtn" aria-label="새 닉네임">🎲</button></div>
+        </div>
         <button class="bigbtn" id="startBtn">플로깅 시작</button>
       </div>
     </div>
@@ -287,13 +313,13 @@
     <div class="pm-t">🌊 이 게임 속 쓰레기, 전부 실제 데이터</div>
     <div class="pm-d"><b>해양환경정보포털(MEIS)의 국가해안쓰레기 모니터링통계</b> 데이터를 사용했어요. <br>진짜 데이터를 보고 싶다면 클릭!</div>
     <div class="pm-links">
-      <a class="pm-btn data" href="https://www.meis.go.kr" target="_blank" rel="noopener">📊 데이터 보기</a>
+      <a class="pm-btn data" href="https://www.meis.go.kr/mli/monitoringInfo/intro.do" target="_blank" rel="noopener">📊 데이터 보기</a>
       <!-- <a class="pm-btn svc" id="svcLink" style="display:none" target="_blank" rel="noopener">🌤️ 해안쓰레기 예보 보기</a> -->
     </div>
     <div class="pm-fb"><span>이 게임 어땠어요?</span><button class="likebtn" id="likeBtn">👍 좋아요 <b id="likeCount">0</b></button></div>
   </div>
 
-  <footer><b>🗑️ 점수 규칙</b> — 점수는 그 쓰레기의 <b>실제 발생 확률이 낮을수록 높아요</b>(통계 기반). 바다 위로 떠내려오는 쓰레기를 잡으면 ×3 보너스. 게(칠게)·산호(검붉은수지맨드라미·착생깃산호) 같은 바다 생물을 넣으면 <b>−80점 감점</b>과 콤보 초기화. <br>*데이터 출처: 해양환경정보포털(MEIS) 국가해안쓰레기 모니터링통계</footer>
+  <footer>*데이터 출처: MEIS 국가해안쓰레기 모니터링통계</footer>
 </div>
 
 <!-- 공유 카드 미리보기 모달 — 이미지 첨부 공유가 안 되는 환경(PC·카톡 인앱브라우저 등)에서 표시 -->
@@ -328,10 +354,10 @@ function ptsFor(it){return Math.max(10, Math.round(1000/it.pct/10)*10);}
 function isBig(it){return ptsFor(it)>=1000;}
 const totalPct=ITEMS.reduce((s,i)=>s+i.pct,0);
 function rollItem(){let r=Math.random()*totalPct,a=0;for(const it of ITEMS){a+=it.pct;if(r<=a)return it;}return ITEMS[0];}
-const DRIFT_MULT=3, CRITTER_PENALTY=80;
+const DRIFT_MULT=3, CRITTER_PENALTY=100;
 // 보호종 단일 소스 — 이름·파일·서식지. habitat이 곧 분류다:
 //   sea    = 물 위를 떠다니는 배경 (클릭X, 감점X)
-//   sand   = 스폰되는 감점 오브젝트 (통에 넣으면 −80)
+//   sand   = 스폰되는 감점 오브젝트 (통에 넣으면 −CRITTER_PENALTY)
 //   none   = 게임 화면에 안 나옴 (도감 전용)
 //   fixed  = 산호라 스폰돼도 그 자리에 가만히(bob 없음). emoji는 PNG 로드 실패 시 폴백.
 const CREATURES={
