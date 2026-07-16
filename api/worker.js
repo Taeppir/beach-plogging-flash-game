@@ -56,7 +56,7 @@ function cleanNick(n) {
   let s = String(n || '')
     .replace(/[<>&"']/g, '')
     .replace(/[\u0000-\u001f\u200b-\u200f\u2028\u2029\ufeff]/g, '')
-    .trim().slice(0, 12);
+    .trim().slice(0, 16); // 최장 자동 닉 '꼬물꼬물검붉은수지맨드라미123' = 16자
   const low = s.toLowerCase();
   if (!s || BAD_WORDS.some((b) => low.includes(b))) s = '익명플로거';
   return s;

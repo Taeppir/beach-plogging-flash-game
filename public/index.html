@@ -101,7 +101,10 @@
   .panel .lead{font-size:12px;color:var(--muted);margin:11px 0 0;line-height:1.75}
   .panel .lead b{color:var(--ink)}
   .nickrow{display:flex;align-items:center;gap:8px;justify-content:center;margin:16px 0}
-  .nickrow input{border:3px solid var(--outline);padding:8px 11px;font-family:var(--sans);font-size:13px;font-weight:700;width:128px;text-align:center;outline:none;background:#fff}
+  .nickrow input{border:3px solid var(--outline);padding:8px 11px;font-family:var(--sans);font-size:12px;font-weight:700;width:196px;min-width:0;text-align:center;outline:none;background:#fff}
+  /* 닉네임 옆 생물 썸네일 — 스프라이트라 image-rendering은 auto(픽셀화 금지) */
+  .nick-ico{width:22px;height:22px;object-fit:contain;image-rendering:auto;flex:0 0 auto;vertical-align:middle}
+  .nick-ico-fb{width:22px;height:22px;font-size:18px;line-height:22px;flex:0 0 auto;text-align:center;vertical-align:middle}
   .nickrow input:focus{border-color:var(--teal);box-shadow:2px 2px 0 rgba(38,153,189,.3)}
   .dice{font-family:var(--sans);font-size:16px;border:3px solid var(--outline);background:#fff;width:40px;height:40px;cursor:pointer;transition:transform .1s;box-shadow:2px 2px 0 rgba(22,36,45,.2)}
   .dice:active{transform:translate(2px,2px);box-shadow:none}
@@ -237,7 +240,7 @@
         <h2>🏖️ 해변을 지켜주세요!</h2>
         <div class="lead">떠밀려온 쓰레기를 <b>끌어다 쓰레기통에</b> 넣어요.</div>
         <div class="lead">🌊 바다에서 떠내려오는 쓰레기는 점수 <b>3배</b>!</br><b>게·산호</b> 같은 바다 생물을 넣으면 <b>감점</b> - 쓰레기만 골라 담아요!</div>
-        <div class="nickrow"><span id="nickEmo">🐚</span> <input id="nick" maxlength="10" placeholder="닉네임"><button class="dice" id="diceBtn" aria-label="새 닉네임">🎲</button></div>
+        <div class="nickrow"><span id="nickIco" class="nick-ico-fb">🐚</span> <input id="nick" maxlength="16" placeholder="닉네임"><button class="dice" id="diceBtn" aria-label="새 닉네임">🎲</button></div>
         <button class="bigbtn" id="startBtn">플로깅 시작</button>
       </div>
     </div>
@@ -392,19 +395,31 @@ async function sList(p,sh){
 
 // ===== 익명 ID + 자동 닉네임 =====
 function makeUid(){try{return crypto.randomUUID();}catch(e){return 'u'+Date.now()+Math.random().toString(36).slice(2,10);}}
-const ADJ=['익명','성난','신난','졸린','용감한','재빠른','느긋한','씩씩한','반짝','수줍은'];
-// [이름, 이모지] — 닉네임과 이모지가 함께 움직임
-const SEA=[['물범','🦭'],['해달','🦦'],['돌고래','🐬'],['범고래','🐋'],['고래','🐳'],['바다거북','🐢'],['문어','🐙'],['오징어','🦑'],['새우','🦐'],['소라','🐚'],['상어','🦈'],['복어','🐡'],['펭귄','🐧'],['갈매기','🐦'],['불가사리','⭐']];
-let nickEmoji='🐚';
+const ADJ=['익명','성난','신난','졸린','용감한','재빠른','느긋한','씩씩한','반짝','수줍은','배고픈','엉뚱한','튼튼한','상냥한','뽀송한','꼬물꼬물','귀여운','당당한','나른한','통통한'];
+// KOEM 보호종 8종 — 이름·썸네일·폴백 이모지 모두 CREATURES가 단일 소스.
+// 긴 이름 우선 정렬: 역추적 시 짧은 이름이 긴 이름 안에 겹쳐도 긴 쪽이 먼저 잡힌다.
+const SEA=Object.entries(CREATURES).map(([id,c])=>({id,name:c.name,img:c.img,emoji:c.emoji})).sort((a,b)=>b.name.length-a.name.length);
+// 형용사+종+숫자. 길이 상한 없음 — 상한을 두면 '검붉은수지맨드라미'류가 전부 걸러져 종 분포가 편중된다.
 function autoNick(){
-  let name='',emo='🐚';
-  do{const sp=SEA[Math.floor(Math.random()*SEA.length)];name=ADJ[Math.floor(Math.random()*ADJ.length)]+sp[0];emo=sp[1];}while(name.length>7);
-  nickEmoji=emo;
-  return name+(100+Math.floor(Math.random()*900)); // 3자리 번호 — 동명이인 구분
+  const sp=SEA[Math.floor(Math.random()*SEA.length)];
+  const adj=ADJ[Math.floor(Math.random()*ADJ.length)];
+  return adj+sp.name+(100+Math.floor(Math.random()*900)); // 3자리 번호 — 동명이인 구분
 }
-// 닉네임 문자열에서 생물 이름을 찾아 이모지 매칭 (직접 입력한 닉네임·랭킹 표시용)
-function emojiFor(n){for(const [name,emo] of SEA){if((n||'').includes(name))return emo;}return '🐚';}
-function syncNickEmoji(){nickEmoji=emojiFor(nick);document.getElementById('nickEmo').textContent=nickEmoji;}
+// 닉네임 문자열 → 종 역추적 (직접 입력한 닉·랭킹에 뜨는 남의 닉도 이 경로)
+function creaFor(n){return SEA.find(s=>(n||'').includes(s.name))||null;}
+// 썸네일 실패 → 종 이모지로 폴백. id가 있으면 넘겨받아 유지(시작 화면 #nickIco 재추첨용)
+function nickIcoFail(el,emo){const s=document.createElement('span');if(el.id)s.id=el.id;s.className='nick-ico-fb';s.textContent=emo;el.replaceWith(s);}
+// 랭킹 등 HTML 문자열용. src·alt는 CREATURES 상수에서만 오므로 사용자 입력이 섞이지 않는다
+function nickIcoHTML(c){return c?`<img class="nick-ico" src="${c.img}" alt="${esc(c.name)}" onerror="nickIcoFail(this,'${c.emoji}')">`:'<span class="nick-ico-fb">🐚</span>';}
+// 시작 화면 아이콘 — nick 문자열에서 종을 다시 찾으므로 별도 상태를 들고 있지 않는다
+function syncNickIcon(){
+  const cur=document.getElementById('nickIco');if(!cur)return;
+  const c=creaFor(nick),el=document.createElement(c?'img':'span');
+  el.id='nickIco';
+  if(c){el.className='nick-ico';el.src=c.img;el.alt=c.name;el.onerror=()=>nickIcoFail(el,c.emoji);}
+  else{el.className='nick-ico-fb';el.textContent='🐚';}
+  cur.replaceWith(el);
+}
 // uid → 2자리 표시 태그 (#10~#99). 동명이인 구분용, uid 복원 불가
 function tagOf(s){let h=5381;for(let i=0;i<s.length;i++)h=((h*33)^s.charCodeAt(i))>>>0;return 10+(h%90);}
 // 부적절 닉네임 1차 필터 (서버에서 최종 검증)
@@ -496,14 +511,14 @@ async function boot(){
   if(!uid){uid=makeUid();await sSet('uid',uid,false);} // 세션 한정 익명 ID (탭 닫으면 소멸)
   try{const n=await sGet('nick',false);if(n&&n.value)nick=n.value;}catch(e){}
   if(!nick){nick=autoNick();await sSet('nick',nick,false);} // 자동 채움 — 바로 시작 가능
-  document.getElementById('nick').value=nick;syncNickEmoji();
+  document.getElementById('nick').value=nick;syncNickIcon();
   try{const d=await sGet('dex',false);if(d&&d.value)dex=JSON.parse(d.value);}catch(e){}
   renderDex(); loadLB(); initSound(); initRQ().then(renderRQ);
   track('visit');
 }
-document.getElementById('nick').addEventListener('change',async e=>{nick=cleanNickClient(e.target.value)||nick;e.target.value=nick;syncNickEmoji();await sSet('nick',nick,false);});
+document.getElementById('nick').addEventListener('change',async e=>{nick=cleanNickClient(e.target.value)||nick;e.target.value=nick;syncNickIcon();await sSet('nick',nick,false);});
 document.getElementById('diceBtn').addEventListener('click',async()=>{
-  nick=autoNick();document.getElementById('nick').value=nick;document.getElementById('nickEmo').textContent=nickEmoji;await sSet('nick',nick,false);sfx.pick();
+  nick=autoNick();document.getElementById('nick').value=nick;syncNickIcon();await sSet('nick',nick,false);sfx.pick();
 });
 function ensureNick(){
   const inp=document.getElementById('nick');
@@ -912,7 +927,7 @@ async function loadLB(){
   el.innerHTML=rows.slice(0,10).map((r,i)=>{
     const medal=['🥇','🥈','🥉'][i]||('#'+(i+1));
     const me=(r.tag!=null)?(r.tag===myT&&r.nick===nick):(r.nick===nick);
-    return `<div class="lbrow ${me?'me':''}"><span class="rk">${medal}</span><span class="who">${emojiFor(r.nick)} ${esc(r.nick)}</span><span class="sc">${(r.score||0).toLocaleString()}</span></div>`;}).join('');
+    return `<div class="lbrow ${me?'me':''}"><span class="rk">${medal}</span><span class="who">${nickIcoHTML(creaFor(r.nick))} ${esc(r.nick)}</span><span class="sc">${(r.score||0).toLocaleString()}</span></div>`;}).join('');
 }
 // 탭에 다시 돌아오면 리더보드 갱신 (10초 스로틀)
 let lastLB=0;
