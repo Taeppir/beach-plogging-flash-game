@@ -211,7 +211,7 @@
   .shareModal-inner{background:var(--panel);border:4px solid var(--outline);padding:18px;max-width:400px;width:100%;box-shadow:var(--sh);position:relative;text-align:center;margin:auto}
   .shareModal-close{position:absolute;top:10px;right:10px;width:34px;height:34px;border:3px solid var(--outline);background:#fff;font-size:14px;cursor:pointer;color:#3f6070;line-height:1}
   .shareModal-title{font-family:var(--sans);font-size:14px;font-weight:700;margin-bottom:13px;color:var(--ink)}
-  .shareModal-img{width:100%;display:block;border:3px solid var(--outline);box-shadow:var(--sh-sm);background:#dceef5;aspect-ratio:1/1}
+  .shareModal-img{width:100%;display:block;border:3px solid var(--outline);box-shadow:var(--sh-sm);background:#dceef5;aspect-ratio:4/5}
   .shareModal-btns{display:flex;gap:9px;margin-top:14px}
   .shareModal-btn{flex:1;font-family:var(--sans);font-size:13px;font-weight:700;padding:12px;cursor:pointer;border:3px solid var(--outline);min-height:46px;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:4px}
   .shareModal-btn.dl{background:var(--teal);color:#fff;box-shadow:0 4px 0 var(--teal-d)}
@@ -393,8 +393,8 @@
 <div class="shareModal" id="shareModal" style="display:none">
   <div class="shareModal-inner">
     <button class="shareModal-close" id="shareClose" aria-label="닫기">✕</button>
-    <div class="shareModal-title">🏖️ 내 등급 카드</div>
-    <img class="shareModal-img" id="shareImg" alt="등급 카드">
+    <div class="shareModal-title">🎴 내 바다친구 카드</div>
+    <img class="shareModal-img" id="shareImg" alt="바다친구 감사 카드">
     <div class="shareModal-btns">
       <button class="shareModal-btn dl" id="shareGo" type="button">📤 결과 공유하기</button>
     </div>
@@ -763,6 +763,7 @@ function showResult(){
     if(score>rankedBest){sb.textContent='🏆 자동 갱신됨 ✓';doSubmit(true);}
     else sb.textContent='🏆 최고 기록 유지 중';
   } else {sb.disabled=false;sb.textContent='🏆 랭킹 등록';}
+  pickShareCard(); // 이번 결과에 쓸 감사 카드 1장 고정 — 공유를 몇 번 누르든 같은 카드
   document.getElementById('resultOv').style.display='flex';
 }
 let rankedBest=-1; // 이번 세션에서 랭킹에 등록된 최고 점수 (-1 = 미등록)
@@ -790,87 +791,21 @@ document.getElementById('shareBtn').addEventListener('click',async function(){
   if(ok){this.textContent='등록됨 ✓';}
   else{this.disabled=false;this.textContent='↻ 다시 시도';} // 네트워크 실패 시 복구
 });
-// ===== 공유용 개인 등급 카드 이미지 =====
-// 점수 → 등급(캐릭터). 결과 화면(showResult)과 동일한 기준을 공유용으로 별도 산출.
-function gradeForScore(s){
-  if(s>=10000)return{n:4,emoji:'🌟',name:'바다지킴이 마스터'};
-  if(s>=6000) return{n:3,emoji:'💪',name:'열혈 플로거'};
-  if(s>=1000) return{n:2,emoji:'🙂',name:'새내기 플로거'};
-  return       {n:1,emoji:'🌱',name:'플로깅 입문'};
-}
-const GRADE_IMG={1:'images/grade-1.png',2:'images/grade-2.png',3:'images/grade-3.png',4:'images/grade-4.png'};
-const GRADE_COLOR={1:'#3fb98f',2:'#2ba7c7',3:'#f19a3c',4:'#e0a11a'};
-const CARD_FONT="'Pretendard',system-ui,'Apple SD Gothic Neo','Malgun Gothic',sans-serif";
-// 상대경로(동일 Pages 도메인) → canvas가 tainted되지 않아 toBlob() 가능. 3초 타임아웃.
-function loadCardImg(src,ms){
-  return new Promise((resolve,reject)=>{
-    const img=new Image();let done=false;
-    const t=setTimeout(()=>{if(!done){done=true;reject(new Error('timeout'));}},ms);
-    img.onload=()=>{if(!done){done=true;clearTimeout(t);resolve(img);}};
-    img.onerror=()=>{if(!done){done=true;clearTimeout(t);reject(new Error('load error'));}};
-    img.src=src;
-  });
-}
-function cardRoundRect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
-// 등급 카드(1080×1080 PNG Blob) 생성. 이미지 로딩 실패/타임아웃 시 이모지 fallback으로 그려 공유가 멈추지 않게.
-async function makeShareCard(g,sc){
-  const W=1080,H=1080;
-  const cv=document.createElement('canvas');cv.width=W;cv.height=H;
-  const ctx=cv.getContext('2d');
-  // 배경 — 게임 스테이지와 동일한 하늘/바다/모래 그라디언트
-  const bg=ctx.createLinearGradient(0,0,0,H);
-  bg.addColorStop(0,'#bfe9f5');bg.addColorStop(0.28,'#a6dcee');
-  bg.addColorStop(0.28,'#5cc0d8');bg.addColorStop(0.52,'#2f97b8');
-  bg.addColorStop(0.52,'#f0dfb2');bg.addColorStop(1,'#f7ecc9');
-  ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
-  // 햇살 (우상단, 은은하게)
-  const sun=ctx.createRadialGradient(950,140,8,950,140,90);
-  sun.addColorStop(0,'rgba(255,231,140,.95)');sun.addColorStop(1,'rgba(255,211,92,0)');
-  ctx.fillStyle=sun;ctx.beginPath();ctx.arc(950,140,90,0,Math.PI*2);ctx.fill();
-  ctx.textAlign='center';
-  // 제목
-  ctx.save();
-  ctx.shadowColor='rgba(20,60,80,.28)';ctx.shadowBlur=14;ctx.shadowOffsetY=3;
-  ctx.fillStyle='#fff';ctx.font='800 60px '+CARD_FONT;
-  ctx.fillText('🏖️ 30초 해변 플로깅',W/2,152);
-  ctx.restore();
-  ctx.fillStyle='rgba(20,55,71,.72)';ctx.font='600 26px '+CARD_FONT;
-  ctx.fillText('쓰레기를 주워 우리 바다를 지켜요',W/2,198);
-  // 캐릭터 (동일 도메인 PNG) — 실패 시 이모지로 대체
-  const bx=90,by=214,bw=900,bh=496;
-  let img=null;
-  try{img=await loadCardImg(GRADE_IMG[g.n],3000);}catch(e){img=null;}
-  if(img){
-    const s=Math.min(bw/img.width,bh/img.height);
-    const w=img.width*s,h=img.height*s;
-    ctx.drawImage(img,bx+(bw-w)/2,by+(bh-h),w,h); // 바닥 정렬(발이 모래에 닿게)
-  }else{
-    ctx.save();ctx.textBaseline='middle';ctx.font='300px '+CARD_FONT;
-    ctx.fillText(g.emoji,W/2,by+bh/2);ctx.restore();
-  }
-  // 등급 pill
-  ctx.font='800 40px '+CARD_FONT;
-  const pillText=g.emoji+' '+g.name;
-  const tw=ctx.measureText(pillText).width;
-  const ph=78,pw=tw+92,px=(W-pw)/2,py=726;
-  ctx.save();
-  ctx.shadowColor='rgba(20,60,80,.28)';ctx.shadowBlur=22;ctx.shadowOffsetY=8;
-  ctx.fillStyle=GRADE_COLOR[g.n];cardRoundRect(ctx,px,py,pw,ph,ph/2);ctx.fill();
-  ctx.restore();
-  ctx.fillStyle='#fff';ctx.textBaseline='middle';
-  ctx.fillText(pillText,W/2,py+ph/2+3);
-  ctx.textBaseline='alphabetic';
-  // 점수
-  ctx.fillStyle='rgba(20,70,90,.72)';ctx.font='700 24px '+CARD_FONT;
-  ctx.fillText('내가 주운 쓰레기 점수',W/2,846);
-  ctx.fillStyle='#0f4a5e';ctx.font='800 84px '+CARD_FONT;
-  ctx.fillText(sc.toLocaleString()+'점',W/2,924);
-  // 푸터 (데이터 출처)
-  ctx.fillStyle='#2a5566';ctx.font='700 26px '+CARD_FONT;
-  ctx.fillText('🌊 해안쓰레기의 87.4%는 플라스틱이라는 사실!',W/2,996);
-  ctx.fillStyle='rgba(42,85,102,.78)';ctx.font='600 21px '+CARD_FONT;
-  ctx.fillText('해양환경정보포털 국가 해안 쓰레기 모니터링 통계 공공데이터',W/2,1034);
-  return await new Promise((res,rej)=>{cv.toBlob(b=>b?res(b):rej(new Error('toBlob null')),'image/png');});
+// ===== 공유 카드 =====
+// 감사 카드 3종(1080×1341 PNG). 결과 화면이 뜰 때 pickShareCard()로 1장 뽑아 고정한다
+// → 모달 미리보기와 실제 공유되는 카드가 항상 같고, 공유를 여러 번 눌러도 바뀌지 않는다.
+const SHARE_CARDS=['images/card_01.png','images/card_02.png','images/card_03.png'];
+let shareCardSrc=SHARE_CARDS[0];
+function pickShareCard(){shareCardSrc=SHARE_CARDS[Math.floor(Math.random()*SHARE_CARDS.length)];}
+// 고정된 카드를 Blob으로 로드. 상대경로(동일 Pages 도메인)라 CORS 무관.
+// 404·네트워크 실패·3초 초과 시 throw → 호출부가 shareTextFallback(문구 공유)으로 폴백.
+async function loadShareCard(){
+  const ac=new AbortController(),t=setTimeout(()=>ac.abort(),3000);
+  try{
+    const r=await fetch(shareCardSrc,{signal:ac.signal});
+    if(!r.ok)throw new Error('card '+r.status); // fetch는 404에 reject하지 않는다 — 직접 확인
+    return await r.blob();
+  }finally{clearTimeout(t);}
 }
 // 이미지 공유 미지원 환경: 카드 미리보기 모달(이미지 저장·링크복사)
 let shareObjURL=null;
@@ -952,17 +887,17 @@ async function shareTextFallback(text,url,btn){
   if(ok)done('🔗 링크 복사됨 ✓','copy');
   else{btn.disabled=false;btn.textContent='복사 실패 — 주소창에서 복사해주세요';}
 }
-// 친구에게 공유 — 개인 등급 카드 이미지 공유. 실제 완료 시에만 집계
+// 친구에게 공유 — 감사 카드 이미지 공유. 실제 완료 시에만 집계
 document.getElementById('inviteBtn').addEventListener('click',async function(){
   const btn=this;
   const url=location.origin+location.pathname;
-  const g=gradeForScore(score);
-  const text=`🏖️ 30초 해변 플로깅에서 '${g.name}' 등급을 달성했어요! 우리 해변에 쓰레기가 얼마나 있는지 확인하고, 플로깅에 함께 동참해보세요 🌊`;
+  // 세 경로(파일 공유·문구 폴백·모달 복사)가 모두 이 text 하나를 넘겨받는다
+  const text='🌊 30초 해변 플로깅으로 우리 바다를 지켰어요! 당신도 바다친구를 만나보세요 🎴';
   btn.disabled=true;btn.textContent='🎴 카드 만드는 중…';
-  // 1) 등급 카드 생성 (이미지 로딩 실패해도 이모지 카드로 생성됨)
+  // 1) 결과 화면에서 고정해둔 감사 카드를 Blob으로 로드
   let blob=null;
-  try{blob=await makeShareCard(g,score);}catch(e){blob=null;}
-  // 카드 자체가 실패 → 기존 텍스트/링크 공유로 폴백
+  try{blob=await loadShareCard();}catch(e){blob=null;}
+  // 카드 로드 실패(404·네트워크·타임아웃) → 기존 텍스트/링크 공유로 폴백
   if(!blob){btn.textContent='📤 친구에게 도전장 보내기';await shareTextFallback(text,url,btn);return;}
   const file=new File([blob],'beach-plogging.png',{type:'image/png'});
   // 2) 모바일: 이미지 파일 첨부 공유 시트 (카톡·인스타·스토리·저장 등)
