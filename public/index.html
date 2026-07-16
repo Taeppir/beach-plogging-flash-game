@@ -300,23 +300,27 @@
     <div class="dexrow" id="dexrow"></div>
   </div>
 
-  <div class="card" id="rqCard" style="display:none">
-    <div class="h"><span class="t">💬 우리 바다 데이터, 알고 있었나요?</span></div>
-    <div class="reactwrap" id="reactWrap">
-      <div class="rq"></div>
-      <div class="reactrow"></div>
-    </div>
-  </div>
-
   <div class="card">
     <div class="h"><span class="t">📊 해안쓰레기 인사이트 <span class="badge">실측</span></span><span class="c">MEIS</span></div>
     <div class="ins" id="ins"></div>
     <div class="insnote"><b style="color:#4a6b7a">2018~2023년</b> 국가해안쓰레기 모니터링통계 · 개수 기준 전국 누적(6년). <br><b style="color:#4a6b7a">플라스틱 87.4%로 최다</b>. 막대 길이는 재질별 비중, 색상은 상대적 희소성을 나타냄.</div>
   </div>
 
+  <!-- 퀴즈 자리 — 내용은 다음 단계. #rqCard와 같은 방식(기본 display:none, JS가 block으로 켬)이라
+       빈 카드가 보이지 않는다. 자리만 잡아두는 것이므로 순서를 옮기면 퀴즈가 인사이트에서 떨어진다. -->
+  <div class="card" id="quizCard" style="display:none"></div>
+
   <div class="card">
     <div class="h"><span class="t">🏆 플로깅 랭킹 <span class="badge">실시간</span></span><span class="c" id="lbC"></span></div>
     <div class="lb" id="lb"><div class="lbload">불러오는 중…</div></div>
+  </div>
+
+  <div class="card" id="rqCard" style="display:none">
+    <div class="h"><span class="t">💬 우리 바다 데이터, 알고 있었나요?</span></div>
+    <div class="reactwrap" id="reactWrap">
+      <div class="rq"></div>
+      <div class="reactrow"></div>
+    </div>
   </div>
 
   <div class="card promo">
