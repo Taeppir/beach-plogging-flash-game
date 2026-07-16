@@ -1,0 +1,6 @@
+# 스프라이트 원본 백업 — public/assets/ 의 정규화본을 재생성할 때만 쓰는 로컬 자료.
+# 배포(public/)에도 저장소에도 넣지 않는다. 지우면 정규화를 되돌릴 수 없으니 로컬에는 보관할 것.
+assets_raw/
+
+.DS_Store
+node_modules/

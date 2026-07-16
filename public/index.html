@@ -30,7 +30,7 @@
   .sun{position:absolute;top:18px;right:26px;width:40px;height:40px;border-radius:50%;background:radial-gradient(circle,#ffe58a,#ffd35c);box-shadow:0 0 26px #ffe08a;z-index:1}
   .cloud{position:absolute;font-size:26px;opacity:.9;animation:drift 22s linear infinite;z-index:1}
   @keyframes drift{from{transform:translateX(-60px)}to{transform:translateX(500px)}}
-  .fish{position:absolute;font-size:20px;opacity:.85;z-index:1;animation:swim linear infinite;transform:scaleX(-1)}
+  .fish{position:absolute;width:40px;height:40px;object-fit:contain;image-rendering:auto;opacity:.85;z-index:1;animation:swim linear infinite;transform:scaleX(-1);pointer-events:none;-webkit-user-drag:none}
   @keyframes swim{from{transform:translateX(-40px) scaleX(-1)}to{transform:translateX(500px) scaleX(-1)}}
   .seaShine{position:absolute;left:0;right:0;top:29%;height:23%;z-index:1;opacity:.4;pointer-events:none}
   .seaShine svg{width:200%;height:100%;animation:waveMove 7s linear infinite}
@@ -38,7 +38,12 @@
   .band-lbl{position:absolute;left:8px;font-size:9px;font-weight:800;color:rgba(255,255,255,.65);z-index:1;letter-spacing:.1em}
 
   .trash{position:absolute;font-size:34px;cursor:grab;user-select:none;line-height:1;touch-action:none;z-index:3;animation:bob 1.6s ease-in-out infinite}
-  .trash.drift{animation:none;z-index:4}
+  /* 스프라이트 모드 — 정규화된 PNG(내용 86% 채움)라 모든 재질이 박스를 균일하게 채운다.
+     이미지 로드 실패 시 JS가 .sprite를 떼면 .trash의 34px 이모지로 되돌아간다. */
+  .trash.sprite{width:36px;height:36px;font-size:0}
+  .trash.sprite>img{display:block;width:100%;height:100%;object-fit:contain;image-rendering:auto;pointer-events:none;-webkit-user-drag:none}
+  .trash.drift{animation:none;z-index:4;transform:scale(1.08)}
+  .trash.rare:not(.drift){animation-name:bobRare}
   .trash.rare{filter:drop-shadow(0 0 8px #ffd35c)}
   .trash.rare::after{content:"";position:absolute;inset:-8px;border-radius:50%;box-shadow:0 0 0 3px rgba(244,183,64,.55);animation:ring 1s ease-out infinite}
   .trash.drift::before{content:"🌊";position:absolute;left:50%;bottom:-16px;transform:translateX(-50%);font-size:16px;opacity:.8}
@@ -46,6 +51,8 @@
   .trash.dragging::before{display:none}
   @keyframes ring{0%{transform:scale(.6);opacity:.9}100%{transform:scale(1.5);opacity:0}}
   @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  /* rare는 bob에 확대를 섞는다 — bob이 transform을 점유해 별도 scale 규칙은 덮이기 때문 */
+  @keyframes bobRare{0%,100%{transform:translateY(0) scale(1.08)}50%{transform:translateY(-6px) scale(1.08)}}
   .float{position:absolute;font-weight:800;font-size:16px;pointer-events:none;z-index:40;animation:up .8s ease-out forwards}
   @keyframes up{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-44px)}}
 
@@ -161,9 +168,9 @@
       <path d="M0 48 q25 -8 50 0 t50 0 t50 0 t50 0"/>
     </svg></div>
     <div class="band-lbl" style="top:31%">SEA</div>
-    <div class="fish" style="top:34%;animation-duration:11s">🐟</div>
-    <div class="fish" style="top:44%;animation-duration:15s;animation-delay:-6s">🐠</div>
-    <div class="fish" style="top:39%;animation-duration:13s;animation-delay:-3s">🐟</div>
+    <img class="fish" data-c="turtle" alt="" style="top:34%;animation-duration:11s">
+    <img class="fish" data-c="bigmouth" alt="" style="top:44%;animation-duration:15s;animation-delay:-6s">
+    <img class="fish" data-c="penguin" alt="" style="top:39%;animation-duration:13s;animation-delay:-3s">
     <div class="band-lbl" style="top:54%;color:rgba(120,95,50,.5)">SAND</div>
     <div class="hud">
       <div class="pill time">⏱️ <span id="tsec">30</span><span class="bar"><i id="tbar"></i></span></div>
@@ -247,7 +254,18 @@
 </div>
 
 <script>
-const ITEMS=[{"id": "plastic", "name": "플라스틱", "item": "페트병·플라스틱", "emoji": "🥤", "cnt": 419456, "wt": 12413.5, "pct": 87.4}, {"id": "glass", "name": "유리", "item": "유리병·조각", "emoji": "🍾", "cnt": 16418, "wt": 742.5, "pct": 3.4}, {"id": "etc", "name": "기타재질", "item": "정체불명 조각", "emoji": "❓", "cnt": 10013, "wt": 780.3, "pct": 2.1}, {"id": "metal", "name": "금속", "item": "캔·금속", "emoji": "🥫", "cnt": 9103, "wt": 804.2, "pct": 1.9}, {"id": "foreign", "name": "외국기인", "item": "외국·먼바다 유입", "emoji": "🌏", "cnt": 8753, "wt": 2611.6, "pct": 1.8}, {"id": "wood", "name": "목재", "item": "나무·목재", "emoji": "🪵", "cnt": 8350, "wt": 5258.1, "pct": 1.7}, {"id": "paper", "name": "종이", "item": "종이·포장", "emoji": "📦", "cnt": 3442, "wt": 93.6, "pct": 0.7}, {"id": "fiber", "name": "천연섬유", "item": "천·밧줄", "emoji": "🧵", "cnt": 2501, "wt": 256.4, "pct": 0.5}, {"id": "rubber", "name": "고무", "item": "고무·타이어", "emoji": "🛞", "cnt": 2016, "wt": 490.6, "pct": 0.4}];
+// img는 스프라이트 경로, emoji는 이미지 로드 실패 시 폴백. 파일명이 id와 다른 것들이 있다(metal→can, wood→tree, fiber→cloth).
+const ITEMS=[
+  {"id": "plastic", "name": "플라스틱", "item": "페트병·플라스틱", "emoji": "🥤", "img": "assets/trash/trash_plastic.png", "cnt": 419456, "wt": 12413.5, "pct": 87.4},
+  {"id": "glass", "name": "유리", "item": "유리병·조각", "emoji": "🍾", "img": "assets/trash/trash_glass.png", "cnt": 16418, "wt": 742.5, "pct": 3.4},
+  {"id": "etc", "name": "기타재질", "item": "정체불명 조각", "emoji": "❓", "img": "assets/trash/trash_etc.png", "cnt": 10013, "wt": 780.3, "pct": 2.1},
+  {"id": "metal", "name": "금속", "item": "캔·금속", "emoji": "🥫", "img": "assets/trash/trash_can.png", "cnt": 9103, "wt": 804.2, "pct": 1.9},
+  {"id": "foreign", "name": "외국기인", "item": "외국·먼바다 유입", "emoji": "🌏", "img": "assets/trash/trash_foreign.png", "cnt": 8753, "wt": 2611.6, "pct": 1.8},
+  {"id": "wood", "name": "목재", "item": "나무·목재", "emoji": "🪵", "img": "assets/trash/trash_tree.png", "cnt": 8350, "wt": 5258.1, "pct": 1.7},
+  {"id": "paper", "name": "종이", "item": "종이·포장", "emoji": "📦", "img": "assets/trash/trash_paper.png", "cnt": 3442, "wt": 93.6, "pct": 0.7},
+  {"id": "fiber", "name": "천연섬유", "item": "천·밧줄", "emoji": "🧵", "img": "assets/trash/trash_cloth.png", "cnt": 2501, "wt": 256.4, "pct": 0.5},
+  {"id": "rubber", "name": "고무", "item": "고무·타이어", "emoji": "🛞", "img": "assets/trash/trash_rubber.png", "cnt": 2016, "wt": 490.6, "pct": 0.4}
+];
 const byId=Object.fromEntries(ITEMS.map(i=>[i.id,i]));
 // 정직한 점수: 발생 확률(개수%)의 역수 기반, 10점 단위 반올림
 function ptsFor(it){return Math.max(10, Math.round(1000/it.pct/10)*10);}
@@ -257,6 +275,22 @@ function rollItem(){let r=Math.random()*totalPct,a=0;for(const it of ITEMS){a+=i
 const DRIFT_MULT=3, CRITTER_PENALTY=80;
 // 방해 요소: 바다 친구 — 넣으면 감점
 const CRITTERS=[{id:'crab',emoji:'🦀',name:'게'},{id:'shell',emoji:'🐚',name:'조개'},{id:'turtle',emoji:'🐢',name:'거북이'}];
+// 보호종 스프라이트 단일 소스 — 이름↔파일. 지금은 배경 장식만 쓰고, 이후 단계에서 재사용한다.
+const CREATURES={
+  redcoral:{name:'검붉은수지맨드라미',img:'assets/creatures/creatures_redcoral.png'},
+  bigmouth:{name:'넓적부리도요',img:'assets/creatures/creatures_bigmouth.png'},
+  penguin:{name:'바다오리',img:'assets/creatures/creatures_penguin.png'},
+  turtle:{name:'장수거북',img:'assets/creatures/creatures_turtle.png'},
+  feathercoral:{name:'착생깃산호',img:'assets/creatures/creatures_feathercoral.png'},
+  crab:{name:'칠게',img:'assets/creatures/creatures_crab.png'},
+  stripe:{name:'띠무늬물범',img:'assets/creatures/creatures_stripe.png'},
+  sealion:{name:'물개',img:'assets/creatures/creatures_sealion.png'}
+};
+// 배경 생물의 src는 CREATURES에서만 나온다 (HTML에는 data-c 키만)
+document.querySelectorAll('.fish[data-c]').forEach(el=>{
+  const c=CREATURES[el.dataset.c];
+  if(c){el.src=c.img;el.alt=c.name;}
+});
 
 // insight bars — 길이는 비교용(제곱근 스케일)로 작은 값도 구분, 색=희귀도, 정확한 값은 % 라벨
 (function(){
@@ -448,12 +482,20 @@ function spawnCritter(){
   el._kill=setTimeout(()=>{if(el._dragging)return;el.style.transition='opacity .3s';el.style.opacity='0';setTimeout(()=>el.remove(),300);},2600);
   attachDrag(el,it);stage.appendChild(el);
 }
+// 스프라이트로 그리되, PNG가 안 뜨면 기존 이모지로 되돌린다(.sprite를 떼면 .trash의 34px가 적용됨)
+function paintSprite(el,it){
+  const img=new Image();
+  img.alt=it.name;img.draggable=false;
+  img.onerror=()=>{el.classList.remove('sprite');el.textContent=it.emoji;};
+  img.src=it.img;
+  el.appendChild(img);
+}
 function spawnOne(drift){
   const it=rollItem();
   const el=document.createElement('div');
-  el.className='trash'+((drift||isBig(it))?' rare':'')+(drift?' drift':'');
-  el.textContent=it.emoji;el.dataset.id=it.id;if(drift)el.dataset.drift='1';
-  el.style.fontSize=(30+Math.random()*8)+'px';
+  el.className='trash sprite'+((drift||isBig(it))?' rare':'')+(drift?' drift':'');
+  el.dataset.id=it.id;if(drift)el.dataset.drift='1';
+  paintSprite(el,it);
   if(drift){
     const dir=Math.random()<0.5?1:-1; let x=dir>0?-8:106; const y=33+Math.random()*13;
     el.style.top=y+'%';el.style.left=x+'%';
