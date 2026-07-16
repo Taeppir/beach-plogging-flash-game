@@ -56,7 +56,7 @@ function cleanNick(n) {
   let s = String(n || '')
     .replace(/[<>&"']/g, '')
     .replace(/[\u0000-\u001f\u200b-\u200f\u2028\u2029\ufeff]/g, '')
-    .trim().slice(0, 16); // 최장 자동 닉 '꼬물꼬물검붉은수지맨드라미123' = 16자
+    .trim().slice(0, 24); // 최장 자동 닉 '꼬물꼬물검붉은수지맨드라미123'이 16자 — 딱 맞추면 직접 입력·종 추가 시 뒤가 잘려 여유를 둔다
   const low = s.toLowerCase();
   if (!s || BAD_WORDS.some((b) => low.includes(b))) s = '익명플로거';
   return s;

@@ -162,8 +162,15 @@
   .dcell .l{font-family:var(--sans);font-size:9px;color:var(--faint);margin-top:5px}.dcell.got .l{color:var(--muted)}
   .lb{display:flex;flex-direction:column;gap:7px}
   .lbrow{display:flex;align-items:center;gap:10px;background:var(--paper2);border:2px solid var(--outline);padding:8px 11px}
-  .lbrow .rk{font-family:var(--sans);font-weight:700;color:var(--teal-d);width:26px;font-size:13px}.lbrow .who{flex:1;font-family:var(--sans);font-size:12px;font-weight:700}.lbrow .sc{font-family:var(--sans);font-weight:700;font-size:14px}
-  .lbrow.me{background:var(--sky-soft);border-color:var(--teal)}
+  .lbrow .rk{font-family:var(--sans);font-weight:700;color:var(--teal-d);width:26px;flex:0 0 26px;font-size:13px}
+  /* 긴 닉은 잘라내지 않고 줄바꿈 — min-width:0이 없으면 flex 항목이 안 줄어 점수를 밀어낸다 */
+  .lbrow .who{flex:1;min-width:0;font-family:var(--sans);font-size:12px;font-weight:700;word-break:break-all}
+  .lbrow .sc{font-family:var(--sans);font-weight:700;font-size:14px;flex:0 0 auto}
+  .lbrow.me{background:var(--sky-soft);border-color:var(--teal);box-shadow:inset 0 0 0 2px var(--teal)}
+  /* 1~3위 메달색 — .me보다 뒤에 둬 배경·테두리는 메달색이 이기고, .me의 teal 인셋 링은 남아 내 줄 표시는 유지된다 */
+  .lbrow.r1{background:#fae7a8;border-color:var(--gold-d)}
+  .lbrow.r2{background:#e4ebef;border-color:#8a9aa5}
+  .lbrow.r3{background:#f0d6b6;border-color:#a9703f}
   .lbempty,.lbload{font-family:var(--sans);font-size:11px;color:var(--faint);text-align:center;padding:14px}
   .promo{text-align:center}.promo .pm-t{font-family:var(--sans);font-size:14px;font-weight:700}.promo .pm-d{font-family:var(--sans);font-size:11px;color:var(--muted);margin:8px 0 14px;line-height:1.7}
   .pm-links{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:14px}
@@ -268,7 +275,7 @@
         <div class="lead">🌊 바다에서 떠내려오는 쓰레기는 점수 <b>3배</b>!</br>살아있는 바다 생물을 담으면 <b>−100점 감점!</b> 쓰레기만 골라 주워요</div>
         <div class="nickrow">
           <span id="nickIco" class="nick-ico-fb">🐚</span>
-          <div class="nickform"><input id="nick" maxlength="16" placeholder="닉네임"><button class="dice" id="diceBtn" aria-label="새 닉네임">🎲</button></div>
+          <div class="nickform"><input id="nick" maxlength="24" placeholder="닉네임"><button class="dice" id="diceBtn" aria-label="새 닉네임">🎲</button></div>
         </div>
         <button class="bigbtn" id="startBtn">플로깅 시작</button>
       </div>
@@ -955,8 +962,9 @@ async function loadLB(){
   const myT=tagOf(uid);
   el.innerHTML=rows.slice(0,10).map((r,i)=>{
     const medal=['🥇','🥈','🥉'][i]||('#'+(i+1));
+    const rank=i<3?' r'+(i+1):''; // 1~3위만 메달색
     const me=(r.tag!=null)?(r.tag===myT&&r.nick===nick):(r.nick===nick);
-    return `<div class="lbrow ${me?'me':''}"><span class="rk">${medal}</span><span class="who">${nickIcoHTML(creaFor(r.nick))} ${esc(r.nick)}</span><span class="sc">${(r.score||0).toLocaleString()}</span></div>`;}).join('');
+    return `<div class="lbrow ${me?'me':''}${rank}"><span class="rk">${medal}</span><span class="who">${nickIcoHTML(creaFor(r.nick))} ${esc(r.nick)}</span><span class="sc">${(r.score||0).toLocaleString()}</span></div>`;}).join('');
 }
 // 탭에 다시 돌아오면 리더보드 갱신 (10초 스로틀)
 let lastLB=0;
