@@ -171,9 +171,12 @@
   .pm-btn.data{background:var(--teal);color:#fff;box-shadow:0 4px 0 var(--teal-d)}
   .pm-btn.data:active{transform:translateY(3px);box-shadow:0 1px 0 var(--teal-d)}
   .pm-btn.svc{background:var(--sky-soft);color:var(--teal-d)}
-  .pm-fb{display:flex;align-items:center;justify-content:center;gap:10px;font-family:var(--sans);font-size:11px;color:var(--muted);border-top:2px dashed var(--line);padding-top:14px}
-  .likebtn{font-family:var(--sans);font-size:12px;font-weight:700;border:3px solid var(--outline);background:#ffe9e5;color:#c9463a;padding:8px 14px;cursor:pointer;transition:transform .08s,box-shadow .08s;box-shadow:0 3px 0 var(--coral-d)}
+  .pm-fb{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;font-family:var(--sans);font-size:11px;color:var(--muted);border-top:2px dashed var(--line);padding-top:14px}
+  .likebtn,.sharebtn{font-family:var(--sans);font-size:12px;font-weight:700;border:3px solid var(--outline);padding:8px 14px;cursor:pointer;transition:transform .08s,box-shadow .08s;white-space:nowrap}
+  .likebtn{background:#ffe9e5;color:#c9463a;box-shadow:0 3px 0 var(--coral-d)}
   .likebtn:active{transform:translateY(3px);box-shadow:0 0 0 var(--coral-d)}.likebtn.done{background:#ffd7d0}
+  .sharebtn{background:#fff;color:#3f6070;box-shadow:0 3px 0 #c3d4d3}
+  .sharebtn:active{transform:translateY(3px);box-shadow:0 0 0 #c3d4d3}
   footer{margin-top:16px;font-family:var(--sans);font-size:10px;color:var(--muted);line-height:1.9;padding:0 6px}footer b{color:var(--teal-d)}
   .sndtg{margin-left:auto;font-family:var(--sans);font-size:17px;border:3px solid var(--outline);background:#fff;width:42px;height:42px;box-shadow:var(--sh-sm);cursor:pointer}
   .sndtg:active{transform:translate(2px,2px);box-shadow:none}
@@ -219,7 +222,7 @@
      100 단위 = em당 12픽셀). 즉 획이 완전히 균일한 크기는 12·24·36px뿐이고, 22px은 1.83배라 13px(1.08배)보다
      오히려 더 뭉개진다. 여기 13px들은 어긋난 배율이지만 DPR 2~3 모바일에선 오차가 서브픽셀이라 보이지 않는다. */
   .top h1,.panel h2,.card .h .t,.promo .pm-t,.shareModal-title,     /* 타이틀·헤더 */
-  .bigbtn,.rbtns button,.invite,.pm-btn,.shareModal-btn,.likebtn,   /* 버튼 라벨 */
+  .bigbtn,.rbtns button,.invite,.pm-btn,.shareModal-btn,.likebtn,.sharebtn,  /* 버튼 라벨 */
   .panel .rule-hi,                                                  /* 시작 팝업 핵심 규칙 */
   .hud .pill,                                                       /* HUD 점수·타이머 */
   .grade-tag,                                                       /* 등급 이름 */
@@ -316,7 +319,7 @@
       <a class="pm-btn data" href="https://www.meis.go.kr/mli/monitoringInfo/intro.do" target="_blank" rel="noopener">📊 데이터 보기</a>
       <!-- <a class="pm-btn svc" id="svcLink" style="display:none" target="_blank" rel="noopener">🌤️ 해안쓰레기 예보 보기</a> -->
     </div>
-    <div class="pm-fb"><span>이 게임 어땠어요?</span><button class="likebtn" id="likeBtn">👍 좋아요 <b id="likeCount">0</b></button></div>
+    <div class="pm-fb"><span>이 게임 어땠어요?</span><button class="likebtn" id="likeBtn">👍 좋아요 <b id="likeCount">0</b></button><button class="sharebtn" id="linkShareBtn" type="button">🔗 공유하기</button></div>
   </div>
 
   <footer>*데이터 출처: MEIS 국가해안쓰레기 모니터링통계</footer>
@@ -969,6 +972,23 @@ async function initPromo(){
   const btn=document.getElementById('likeBtn');if(liked)btn.classList.add('done');
   btn.addEventListener('click',async()=>{let already=false;try{const g=await sGet('liked',false);already=!!(g&&g.value);}catch(e){}if(already)return;
     await sSet('liked','1',false);btn.classList.add('done');track('like');await likeAdd();const n=await likeGet();document.getElementById('likeCount').textContent=n.toLocaleString();});
+  // 링크 공유 — 결과 카드 공유(inviteBtn)와 달리 이미지 없이 게임 링크만. 공유 시트 → 실패 시 클립보드 복사
+  const sb=document.getElementById('linkShareBtn');
+  sb.addEventListener('click',async()=>{
+    if(sb.dataset.busy==='1')return; // 처리 중 중복 클릭 차단
+    sb.dataset.busy='1';
+    const reset=()=>{sb.textContent='🔗 공유하기';sb.dataset.busy='0';};
+    const url=location.origin+location.pathname;
+    const text='🏖️ 실제 국가해안쓰레기 데이터로 만든 30초 플로깅 게임! 우리 바다에 뭐가 버려졌는지 주우면서 확인해보세요 🌊';
+    if(navigator.share){
+      try{await navigator.share({title:'30초 해변 플로깅',text,url});track('share','link_native');return reset();}
+      catch(e){if(e&&e.name==='AbortError')return reset(); /* 그 외 실패 → 복사로 폴백 */}
+    }
+    const ok=await copyText(text+'\n'+url);
+    if(ok)track('share','link_copy');
+    sb.textContent=ok?'✓ 링크 복사됨':'복사 실패';
+    setTimeout(reset,1800);
+  });
 }
 // 인사이트 카드 실제 노출 측정 (세션당 1회)
 (function(){
