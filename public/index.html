@@ -30,7 +30,10 @@
   .sun{position:absolute;top:18px;right:26px;width:40px;height:40px;border-radius:50%;background:radial-gradient(circle,#ffe58a,#ffd35c);box-shadow:0 0 26px #ffe08a;z-index:1}
   .cloud{position:absolute;font-size:26px;opacity:.9;animation:drift 22s linear infinite;z-index:1}
   @keyframes drift{from{transform:translateX(-60px)}to{transform:translateX(500px)}}
-  .fish{position:absolute;width:40px;height:40px;object-fit:contain;image-rendering:auto;opacity:.85;z-index:1;animation:swim linear infinite;transform:scaleX(-1);pointer-events:none;-webkit-user-drag:none}
+  /* 배경 생물 — .fish는 바다 위를 헤엄치고, .seabed는 바다 바닥에 고정. 둘 다 장식이라
+     클릭 대상이 아니고 게임 오브젝트(.trash, z-index 3)보다 뒤에 깔린다. */
+  .fish,.seabed{position:absolute;width:40px;height:40px;object-fit:contain;image-rendering:auto;opacity:.85;z-index:1;pointer-events:none;-webkit-user-drag:none}
+  .fish{animation:swim linear infinite;transform:scaleX(-1)}
   @keyframes swim{from{transform:translateX(-40px) scaleX(-1)}to{transform:translateX(500px) scaleX(-1)}}
   .seaShine{position:absolute;left:0;right:0;top:29%;height:23%;z-index:1;opacity:.4;pointer-events:none}
   .seaShine svg{width:200%;height:100%;animation:waveMove 7s linear infinite}
@@ -39,8 +42,9 @@
 
   .trash{position:absolute;font-size:34px;cursor:grab;user-select:none;line-height:1;touch-action:none;z-index:3;animation:bob 1.6s ease-in-out infinite}
   /* 스프라이트 모드 — 정규화된 PNG(내용 86% 채움)라 모든 재질이 박스를 균일하게 채운다.
-     이미지 로드 실패 시 JS가 .sprite를 떼면 .trash의 34px 이모지로 되돌아간다. */
-  .trash.sprite{width:36px;height:36px;font-size:0}
+     이미지 로드 실패 시 JS가 .sprite를 떼면 .trash의 34px 이모지로 되돌아간다.
+     44px 박스 + padding 4px → 그림은 36px, 탭 판정은 44px(iOS HIG 최소치). */
+  .trash.sprite{box-sizing:border-box;width:44px;height:44px;padding:4px;font-size:0}
   .trash.sprite>img{display:block;width:100%;height:100%;object-fit:contain;image-rendering:auto;pointer-events:none;-webkit-user-drag:none}
   .trash.drift{animation:none;z-index:4;transform:scale(1.08)}
   .trash.rare:not(.drift){animation-name:bobRare}
@@ -124,6 +128,7 @@
   /* v2 */
   .sndtg{margin-left:auto;font-family:var(--sans);font-size:18px;border:none;background:#fff;width:40px;height:40px;border-radius:13px;box-shadow:var(--sh-sm);cursor:pointer}
   .trash.critter{filter:drop-shadow(0 2px 3px rgba(0,0,0,.15))}
+  .trash.critter.fixed{animation:none}  /* 산호는 고정 — bob 없이 그 자리에 */
   .myrank{background:#f4f9fb;border:1px solid var(--line);border-radius:12px;padding:9px 12px;font-size:12.5px;font-weight:700;color:var(--muted);margin:13px 0 0;display:none}
   .myrank b{color:var(--sky)}
   .reactwrap{margin:0}
@@ -168,9 +173,12 @@
       <path d="M0 48 q25 -8 50 0 t50 0 t50 0 t50 0"/>
     </svg></div>
     <div class="band-lbl" style="top:31%">SEA</div>
-    <img class="fish" data-c="turtle" alt="" style="top:34%;animation-duration:11s">
-    <img class="fish" data-c="bigmouth" alt="" style="top:44%;animation-duration:15s;animation-delay:-6s">
-    <img class="fish" data-c="penguin" alt="" style="top:39%;animation-duration:13s;animation-delay:-3s">
+    <!-- top은 SEA 띠(28~52%) 안에 40px 스프라이트가 온전히 들어가도록 43.5%가 상한 -->
+    <img class="fish" data-c="turtle" alt="" style="top:31%;animation-duration:11s">
+    <img class="fish" data-c="penguin" alt="" style="top:35%;animation-duration:13s;animation-delay:-3s">
+    <img class="fish" data-c="stripe" alt="" style="top:39%;animation-duration:15s;animation-delay:-6s">
+    <img class="fish" data-c="sealion" alt="" style="top:43%;animation-duration:17s;animation-delay:-9s">
+    <img class="seabed" data-c="redcoral" alt="" style="top:43.5%;left:11%">
     <div class="band-lbl" style="top:54%;color:rgba(120,95,50,.5)">SAND</div>
     <div class="hud">
       <div class="pill time">⏱️ <span id="tsec">30</span><span class="bar"><i id="tbar"></i></span></div>
@@ -273,21 +281,25 @@ function isBig(it){return ptsFor(it)>=1000;}
 const totalPct=ITEMS.reduce((s,i)=>s+i.pct,0);
 function rollItem(){let r=Math.random()*totalPct,a=0;for(const it of ITEMS){a+=it.pct;if(r<=a)return it;}return ITEMS[0];}
 const DRIFT_MULT=3, CRITTER_PENALTY=80;
-// 방해 요소: 바다 친구 — 넣으면 감점
-const CRITTERS=[{id:'crab',emoji:'🦀',name:'게'},{id:'shell',emoji:'🐚',name:'조개'},{id:'turtle',emoji:'🐢',name:'거북이'}];
-// 보호종 스프라이트 단일 소스 — 이름↔파일. 지금은 배경 장식만 쓰고, 이후 단계에서 재사용한다.
+// 보호종 단일 소스 — 이름·파일·서식지. habitat이 곧 분류다:
+//   sea    = 물 위를 떠다니는 배경 (클릭X, 감점X)
+//   seabed = 바다 바닥 고정 장식 (클릭X, 감점X, 안 움직임)
+//   sand   = 스폰되는 감점 오브젝트 (통에 넣으면 −80)
+//   fixed  = 산호라 스폰돼도 그 자리에 가만히(bob 없음). emoji는 PNG 로드 실패 시 폴백.
 const CREATURES={
-  redcoral:{name:'검붉은수지맨드라미',img:'assets/creatures/creatures_redcoral.png'},
-  bigmouth:{name:'넓적부리도요',img:'assets/creatures/creatures_bigmouth.png'},
-  penguin:{name:'바다오리',img:'assets/creatures/creatures_penguin.png'},
-  turtle:{name:'장수거북',img:'assets/creatures/creatures_turtle.png'},
-  feathercoral:{name:'착생깃산호',img:'assets/creatures/creatures_feathercoral.png'},
-  crab:{name:'칠게',img:'assets/creatures/creatures_crab.png'},
-  stripe:{name:'띠무늬물범',img:'assets/creatures/creatures_stripe.png'},
-  sealion:{name:'물개',img:'assets/creatures/creatures_sealion.png'}
+  redcoral:{name:'검붉은수지맨드라미',img:'assets/creatures/creatures_redcoral.png',habitat:'seabed',emoji:'🪸'},
+  bigmouth:{name:'넓적부리도요',img:'assets/creatures/creatures_bigmouth.png',habitat:'sand',emoji:'🐦'},
+  penguin:{name:'바다오리',img:'assets/creatures/creatures_penguin.png',habitat:'sea',emoji:'🐧'},
+  turtle:{name:'장수거북',img:'assets/creatures/creatures_turtle.png',habitat:'sea',emoji:'🐢'},
+  feathercoral:{name:'착생깃산호',img:'assets/creatures/creatures_feathercoral.png',habitat:'sand',emoji:'🪸',fixed:true},
+  crab:{name:'칠게',img:'assets/creatures/creatures_crab.png',habitat:'sand',emoji:'🦀'},
+  stripe:{name:'띠무늬물범',img:'assets/creatures/creatures_stripe.png',habitat:'sea',emoji:'🦭'},
+  sealion:{name:'물개',img:'assets/creatures/creatures_sealion.png',habitat:'sea',emoji:'🦭'}
 };
-// 배경 생물의 src는 CREATURES에서만 나온다 (HTML에는 data-c 키만)
-document.querySelectorAll('.fish[data-c]').forEach(el=>{
+// 방해 요소: 모래밭 생물 — 넣으면 감점. 분류는 CREATURES.habitat에서만 나온다.
+const CRITTERS=Object.entries(CREATURES).filter(([,c])=>c.habitat==='sand').map(([id,c])=>({id,...c}));
+// 배경 생물(sea·sky)의 src도 CREATURES에서만 나온다 (HTML에는 data-c 키만)
+document.querySelectorAll('img[data-c]').forEach(el=>{
   const c=CREATURES[el.dataset.c];
   if(c){el.src=c.img;el.alt=c.name;}
 });
@@ -476,8 +488,9 @@ function spawn(){
 function spawnCritter(){
   const it=CRITTERS[Math.floor(Math.random()*CRITTERS.length)];
   const el=document.createElement('div');
-  el.className='trash critter';el.textContent=it.emoji;el.dataset.id=it.id;el.dataset.bad='1';
-  el.style.fontSize=(28+Math.random()*6)+'px';
+  el.className='trash critter sprite'+(it.fixed?' fixed':'');
+  el.dataset.id=it.id;el.dataset.bad='1';
+  paintSprite(el,it);
   const x=8+Math.random()*78, y=56+Math.random()*36; el.style.left=x+'%';el.style.top=y+'%';
   el._kill=setTimeout(()=>{if(el._dragging)return;el.style.transition='opacity .3s';el.style.opacity='0';setTimeout(()=>el.remove(),300);},2600);
   attachDrag(el,it);stage.appendChild(el);
