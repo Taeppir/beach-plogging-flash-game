@@ -122,9 +122,11 @@ async function top(env) {
   return json({ list, total: cnt.c || 0 });
 }
 
+// 여기 없는 name은 400으로 거절된다. 프론트의 track()은 응답을 안 보므로(sendBeacon)
+// 빠뜨리면 조용히 전부 유실된다 — 이벤트를 새로 쏘기 전에 반드시 여기부터 추가할 것.
 const EVENT_NAMES = new Set([
   'visit', 'game_start', 'replay', 'game_end',
-  'rank_submit', 'meis_click', 'svc_click', 'insight_view', 'like', 'reaction', 'share',
+  'rank_submit', 'meis_click', 'svc_click', 'insight_view', 'like', 'reaction', 'share', 'quiz',
 ]);
 
 async function event(req, env) {
@@ -172,6 +174,7 @@ async function stats(url, env) {
     starts, ends, replays,
     players, meisUsers, svcUsers, insightSess,
     likesC, shares, shareUsers, submits, reactions, avgScore,
+    quizRows, quizUsers, quizFinishers,
   ] = await Promise.all([
     q("SELECT COUNT(*) c FROM events WHERE name='visit'"),
     q("SELECT COUNT(DISTINCT uid) c FROM events WHERE name='visit'"),
@@ -188,6 +191,11 @@ async function stats(url, env) {
     q('SELECT COUNT(*) c FROM scores'),
     env.DB.prepare("SELECT data, COUNT(*) c FROM events WHERE name='reaction' GROUP BY data").all(),
     q('SELECT ROUND(AVG(score)) c FROM scores'),
+    env.DB.prepare("SELECT data, COUNT(*) c FROM events WHERE name='quiz' GROUP BY data").all(),
+    q("SELECT COUNT(DISTINCT uid) c FROM events WHERE name='quiz'"),
+    // 3문항 완주자 — data 앞 2자가 문항 id('q1'…)라 substr로 뗀다. 같은 문항을 두 번 답할 수
+    // 없으므로(프론트가 잠금) DISTINCT는 사실상 방어용. 문항이 늘면 이 3도 같이 올려야 한다.
+    q("SELECT COUNT(*) c FROM (SELECT uid FROM events WHERE name='quiz' GROUP BY uid HAVING COUNT(DISTINCT substr(data, 1, 2)) >= 3)"),
   ]);
 
   const rx = {};
@@ -195,6 +203,24 @@ async function stats(url, env) {
   const g = (q, k) => rx[q + ':' + k] || 0;
   const qTot = (q) => g(q, 'new') + g(q, 'vague') + g(q, 'knew');
   const pct = (a, b) => (b > 0 ? Math.round((a / b) * 1000) / 10 : null);
+
+  // ===== 퀴즈 — payload는 'qid:choice:correct|wrong' 3단 =====
+  // 정답 여부가 payload에 실려 오므로 여기서 '무엇이 정답인지' 알 필요가 없다.
+  // 정답키는 index.html의 QUIZ.ans 한 곳에만 있고, 이 파일은 절대 그걸 복제하지 않는다.
+  const qz = {}; // {q1:{tot, correct, wrong:{보기코드:건수}}}
+  for (const row of quizRows.results || []) {
+    const p = String(row.data || '').split(':');
+    if (p.length !== 3) continue; // 3단이 아닌 건 옛 형식이거나 조작 — 집계에서 뺀다
+    const [qid, choice, verdict] = p;
+    if (!qz[qid]) qz[qid] = { tot: 0, correct: 0, wrong: {} };
+    qz[qid].tot += row.c;
+    if (verdict === 'correct') qz[qid].correct += row.c;
+    else qz[qid].wrong[choice] = (qz[qid].wrong[choice] || 0) + row.c;
+  }
+  const qzOf = (id) => qz[id] || { tot: 0, correct: 0, wrong: {} };
+  const qzRate = (id) => pct(qzOf(id).correct, qzOf(id).tot);
+  const qzWrong = (id, c) => qzOf(id).wrong[c] || 0;
+  const qzWrongTot = (id) => Object.values(qzOf(id).wrong).reduce((s, n) => s + n, 0);
 
   return json({
     updated: new Date().toISOString(),
@@ -220,6 +246,24 @@ async function stats(url, env) {
       '데이터 전환율 % (플레이어→MEIS 클릭)': pct(meisUsers.c, players.c),
       '예보 서비스 클릭(세션 기준)': svcUsers.c,
       '인사이트 카드 노출(세션)': insightSess.c,
+    },
+    // 분모는 키 이름에 적어둔다(기존 '데이터 전환율 % (플레이어→MEIS 클릭)'과 같은 방식).
+    // 퀴즈는 게임을 안 해도 풀 수 있어 응답자가 플레이어의 부분집합이 아니다 — 플레이어를 분모로
+    // 쓰면 참여율이 100%를 넘을 수 있어, 방문(모든 응답자를 포함하는 유일한 집합)을 분모로 둔다.
+    quiz: {
+      'Q1 정답률 %': qzRate('q1'),
+      'Q2 정답률 %': qzRate('q2'),
+      'Q3 정답률 %': qzRate('q3'),
+      // 아래 두 줄만 q2의 보기 코드를 알고 있다(정답이 아니라 '선택지가 무엇인가'뿐).
+      // q2 보기가 바뀌면 이 행이 0·—으로 떨어지는 것으로 드러난다.
+      'Q2 오답-유리': qzWrong('q2', 'glass'),
+      'Q2 오답-유리 % (오답 중)': pct(qzWrong('q2', 'glass'), qzWrongTot('q2')),
+      'Q2 오답-고무': qzWrong('q2', 'rubber'),
+      'Q2 오답-고무 % (오답 중)': pct(qzWrong('q2', 'rubber'), qzWrongTot('q2')),
+      '퀴즈 응답(세션 기준)': quizUsers.c,
+      '3문항 완주(세션 기준)': quizFinishers.c,
+      '퀴즈 참여율 % (방문→응답)': pct(quizUsers.c, uniqVisitors.c),
+      '퀴즈 완주율 % (응답자 중 3문항)': pct(quizFinishers.c, quizUsers.c),
     },
     reaction: {
       'Q1(플라스틱 87.4%) 😲 처음 알았어': g('q1', 'new'),
