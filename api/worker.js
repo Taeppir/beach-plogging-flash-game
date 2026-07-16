@@ -178,6 +178,7 @@ async function stats(url, env) {
     starts, ends, replays,
     players, meisUsers, svcUsers, insightSess,
     likesC, shares, shareUsers, submits, reactions, avgScore,
+    cardShares, cardShareUsers, linkShares, linkShareUsers,
     quizRows, quizUsers, quizFinishers,
   ] = await Promise.all([
     q("SELECT COUNT(*) c FROM events WHERE name='visit'"),
@@ -195,6 +196,14 @@ async function stats(url, env) {
     q('SELECT COUNT(*) c FROM scores'),
     env.DB.prepare("SELECT data, COUNT(*) c FROM events WHERE name='reaction' GROUP BY data").all(),
     q('SELECT ROUND(AVG(score)) c FROM scores'),
+    // 결과 카드 공유(inviteBtn)와 하단 링크 공유(linkShareBtn)는 track의 data 값으로만 갈린다.
+    //   카드 = 'image'|'native'|'copy'   링크 = 'link_native'|'link_copy'
+    // LIKE 'link_%' 대신 IN을 쓴다 — SQL LIKE에선 '_'가 한 글자 와일드카드라 의도보다 넓게 잡힌다.
+    // 새 공유 종류를 추가하면 여기 목록에도 넣어야 한다. 안 넣으면 '공유 수(총)'과 둘의 합이 어긋나는 것으로 드러난다.
+    q("SELECT COUNT(*) c FROM events WHERE name='share' AND data IN ('image','native','copy')"),
+    q("SELECT COUNT(DISTINCT uid) c FROM events WHERE name='share' AND data IN ('image','native','copy')"),
+    q("SELECT COUNT(*) c FROM events WHERE name='share' AND data IN ('link_native','link_copy')"),
+    q("SELECT COUNT(DISTINCT uid) c FROM events WHERE name='share' AND data IN ('link_native','link_copy')"),
     env.DB.prepare("SELECT data, COUNT(*) c FROM events WHERE name='quiz' GROUP BY data").all(),
     q("SELECT COUNT(DISTINCT uid) c FROM events WHERE name='quiz'"),
     // 3문항 완주자 — data 앞 2자가 문항 id('q1'…)라 substr로 뗀다. 같은 문항을 두 번 답할 수
@@ -236,13 +245,19 @@ async function stats(url, env) {
       '완주율 %': pct(ends.c, starts.c),
       '순 플레이어(세션 기준)': players.c,
     },
+    // 공유율의 분모가 둘로 갈리는 이유: 카드 공유는 결과 화면에만 있어 플레이어의 부분집합이지만,
+    // 링크 공유 버튼은 하단 프로모 카드에 있어 게임을 안 해도 누를 수 있다. 둘을 합쳐 플레이어로
+    // 나누면 100%를 넘을 수 있다 — 퀴즈 참여율이 방문을 분모로 두는 것과 같은 이유(아래 주석).
     engagement: {
       '재플레이 수': replays.c,
       '재플레이율 % (총 플레이 중)': pct(replays.c, starts.c),
       '랭킹 등록 수(세션 기준)': submits.c,
       '공유 수(총)': shares.c,
+      '카드 공유 수 (결과 화면)': cardShares.c,
+      '링크 공유 수 (하단 버튼)': linkShares.c,
       '공유한 사람(세션 기준)': shareUsers.c,
-      '공유율 % (플레이어→공유)': pct(shareUsers.c, players.c),
+      '카드 공유율 % (플레이어→카드 공유)': pct(cardShareUsers.c, players.c),
+      '링크 공유율 % (방문→링크 공유)': pct(linkShareUsers.c, uniqVisitors.c),
       '평균 점수': avgScore.c,
     },
     data_activation: {
