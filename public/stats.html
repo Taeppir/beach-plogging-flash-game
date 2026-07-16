@@ -41,7 +41,7 @@
 <script>
 const API_URL = "https://beach-plogging-flash-game.wanghope.workers.dev";
 // 강조(파란 큰 글씨)할 키 — Worker JSON의 키와 글자 하나까지 같아야 한다(문자열 일치로 찾는다)
-const HL = new Set(['데이터 전환율 % (플레이어→MEIS 클릭)','Q1 인지 변화율 %','Q2 인지 변화율 %','완주율 %','재플레이율 % (총 플레이 중)','공유율 % (플레이어→공유)',
+const HL = new Set(['데이터 전환율 % (플레이어→MEIS 클릭)','Q1 인지 변화율 %','완주율 %','재플레이율 % (총 플레이 중)','공유율 % (플레이어→공유)',
   'Q1 정답률 %','Q2 정답률 %','Q3 정답률 %','퀴즈 참여율 % (방문→응답)']);
 const TITLES = {funnel:'🔻 유입 퍼널', engagement:'🎮 참여도', data_activation:'📈 데이터 활성화 (핵심)', quiz:'💡 퀴즈 정답률 · 참여', reaction:'💬 사용자 반응 · 인지 변화'};
 async function load(){
@@ -59,8 +59,12 @@ async function load(){
   for(const sec of ['funnel','engagement','data_activation','quiz','reaction']){
     if(!d[sec])continue;
     html+='<div class="card"><h2>'+TITLES[sec]+'</h2>';
+    // 퍼센트 지표의 표식은 '공백+%'다. 붙이는 조건과 라벨에서 떼는 조건이 같은 ' '+'%'를 봐야
+    // 서로 어긋나지 않는다 — includes('%')로 느슨하게 보면 라벨 안에 든 수치('87.4%')까지
+    // 지표로 오인해 건수에 %를 붙인다(5 → '5%'). 값이 0인 건 정상 경로다(0 == null 이 false).
     for(const [k,v] of Object.entries(d[sec])){
-      const disp=v==null?'—':(typeof v==='number'?v.toLocaleString():v)+(k.includes('%')?'%':'');
+      const isPct=k.includes(' %');
+      const disp=v==null?'—':(typeof v==='number'?v.toLocaleString():v)+(isPct?'%':'');
       html+='<div class="row"><span class="k">'+k.replace(' %','')+'</span><span class="v'+(HL.has(k)?' hl':'')+'">'+disp+'</span></div>';
     }
     html+='</div>';

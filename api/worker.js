@@ -265,15 +265,13 @@ async function stats(url, env) {
       '퀴즈 참여율 % (방문→응답)': pct(quizUsers.c, uniqVisitors.c),
       '퀴즈 완주율 % (응답자 중 3문항)': pct(quizFinishers.c, quizUsers.c),
     },
+    // 설문은 1문항(q1 = 데이터 기반 게임 인지). 라벨의 'Q1'은 index.html RQ의 id를 따라간 것이라
+    // 문항 내용을 바꾸면 이 괄호 설명도 같이 바꿔야 한다 — 여기 라벨이 유일한 '무엇을 물었나' 기록이다.
     reaction: {
-      'Q1(플라스틱 87.4%) 😲 처음 알았어': g('q1', 'new'),
+      'Q1(데이터 기반 게임) 😲 처음 알았어': g('q1', 'new'),
       'Q1 🤔 어렴풋이': g('q1', 'vague'),
       'Q1 😎 알고 있었어': g('q1', 'knew'),
       'Q1 인지 변화율 %': pct(g('q1', 'new'), qTot('q1')),
-      'Q2(데이터 기반 게임) 😲 처음 알았어': g('q2', 'new'),
-      'Q2 🤔 어렴풋이': g('q2', 'vague'),
-      'Q2 😎 알고 있었어': g('q2', 'knew'),
-      'Q2 인지 변화율 %': pct(g('q2', 'new'), qTot('q2')),
       '👍 좋아요(세션 기준)': likesC.c,
     },
   });

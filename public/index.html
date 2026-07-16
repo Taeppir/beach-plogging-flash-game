@@ -978,18 +978,17 @@ document.getElementById('inviteBtn').addEventListener('click',async function(){
   openShareModal(blob,text,url);
   btn.disabled=false;btn.textContent='📤 친구에게 도전장 보내기';
 });
-// 1탭 인지 질문 — 세션당 1문항 랜덤 배정, 답하면 다시 안 물음
+// 1탭 인지 질문 — 1문항, 답하면 그 세션엔 다시 안 물음(rxdone)
 // 수치 출처: 국가해안쓰레기모니터링통계(MEIS) 유형별·연도별 (2018~2023, 60개 조사지점)
+// 문항이 하나뿐이라 배정 로직이 없다 — 늘리면 어느 걸 보여줄지 고르는 코드(과거엔 랜덤 배정 +
+// 'rxq'에 저장)를 renderRQ의 RQ[0] 자리에 되살려야 한다. worker의 집계 키도 id를 따라간다.
 const RQ=[
-  {id:'q1',text:'우리나라 해안쓰레기의 <b>87.4%가 플라스틱</b>이라는 것, 알고 있었나요?'},
-  {id:'q2',text:'이 게임의 쓰레기 등장 확률은 <b>실제 조사된 48만 개 데이터</b>를 그대로 옮긴 거예요. 알고 있었나요?'}
+  {id:'q1',text:'이 게임의 쓰레기 등장 확률은 <b>실제 조사된 48만 개 데이터</b>를 그대로 옮긴 거예요. 알고 있었나요?'}
 ];
 const RQ_OPTS=[['new','😲 처음 알았어'],['vague','🤔 어렴풋이'],['knew','😎 알고 있었어']];
-let rqAnswered=false,rqId=null;
+let rqAnswered=false;
 async function initRQ(){
   try{const a=await sGet('rxdone',false);rqAnswered=!!(a&&a.value);}catch(e){}
-  try{const q=await sGet('rxq',false);if(q&&q.value)rqId=q.value;}catch(e){}
-  if(!rqId){rqId=RQ[Math.floor(Math.random()*RQ.length)].id;await sSet('rxq',rqId,false);}
 }
 function renderRQ(){
   const card=document.getElementById('rqCard'),wrap=document.getElementById('reactWrap');
@@ -997,7 +996,7 @@ function renderRQ(){
   // 이미 답한 세션이면 카드 전체 숨김 (도감 밑 빈 카드 방지)
   if(rqAnswered){card.style.display='none';return;}
   card.style.display='block';
-  const q=RQ.find(x=>x.id===rqId)||RQ[0];
+  const q=RQ[0]; // 1문항 — 늘리면 여기서 고르는 로직이 필요하다(위 주석)
   wrap.querySelector('.rq').innerHTML=q.text;
   wrap.querySelector('.reactrow').innerHTML=RQ_OPTS.map(o=>`<button class="reactbtn" data-r="${o[0]}">${o[1]}</button>`).join('');
   wrap.querySelectorAll('.reactbtn').forEach(btn=>{
