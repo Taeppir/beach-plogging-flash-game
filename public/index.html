@@ -648,7 +648,7 @@ function startGame(){
   tickTimer=setInterval(()=>{timeLeft--;document.getElementById('tsec').textContent=timeLeft;document.getElementById('tbar').style.width=(timeLeft/30*100)+'%';if(timeLeft<=10)bin.classList.add('moving');if(timeLeft<=5&&timeLeft>0)sfx.tick();if(timeLeft<=0)endGame();},1000);
   scheduleSpawn();
 }
-function scheduleSpawn(){if(!playing)return;spawn();const gap=Math.max(300,500-(30-timeLeft)*8);spawnTimer=setTimeout(scheduleSpawn,gap);}
+function scheduleSpawn(){if(!playing)return;spawn();const gap=Math.max(220,380-(30-timeLeft)*6);spawnTimer=setTimeout(scheduleSpawn,gap);}
 // 첫판 다양성: 매 게임 시작 시 서로 다른 재질 3종(플라스틱+2종)을 먼저 등장시켜 초반이 플라스틱으로만 도배되지 않게 한다.
 // 확률 모델(rollItem)은 그대로 — 초반 표본만 다양화하고, 큐가 비면 실제 pct 가중 확률로 복귀한다.
 let introQueue=[];
@@ -665,11 +665,13 @@ function buildIntro(){
   for(let i=introQueue.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[introQueue[i],introQueue[j]]=[introQueue[j],introQueue[i]];}
 }
 function spawn(){
-  if(introQueue.length){spawnOne(false,introQueue.shift());return;}  // 초반: 다양한 쓰레기 먼저(동물·drift 없이)
+  if(introQueue.length){spawnOne(false,introQueue.shift());return;}  // 초반: 다양한 쓰레기 먼저
   const r=Math.random();
-  if(r<0.16)spawnOne(true);
-  else if(r<0.29)spawnCritter();   // 동물 등장 18%→13%로 소폭 감소, 남은 비중은 쓰레기로
-  else spawnOne(false);
+  const elapsed=30-timeLeft;
+  const critterChance=elapsed<5?0:0.08;   // 첫 5초는 동물 0%(쓰레기만), 이후 8%(기존 13%↓)
+  if(r<0.16)spawnOne(true);               // drift 쓰레기 16%
+  else if(r<0.16+critterChance)spawnCritter();
+  else spawnOne(false);                   // 일반 쓰레기
 }
 // 일정 시간 뒤 페이드아웃 후 제거. 잡고 있는 동안엔 뺏지 않는다(드래그 중이면 취소).
 function fadeKill(el,ms){
