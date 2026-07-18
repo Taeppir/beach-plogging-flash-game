@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS scores (
   uid   TEXT PRIMARY KEY,
   nick  TEXT NOT NULL,
   score INTEGER NOT NULL,
+  crea  TEXT,              -- 배정 바다생물 id. 닉을 직접 고쳐도 아이콘이 유지되도록 저장. 기존 행은 NULL → 닉 역추적 폴백
   ts    INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_scores_score ON scores (score DESC);

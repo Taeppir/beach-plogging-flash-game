@@ -87,6 +87,8 @@ async function submit(req, env) {
   if (score > 0 && items === 0) return json({ error: 'implausible' }, 400);
 
   const nick = cleanNick(b.nick);
+  // 클라이언트가 배정받은 바다생물 id. 표시용일 뿐이라 존재하지 않는 id면 렌더 단에서 닉 역추적으로 폴백된다
+  const crea = (typeof b.crea === 'string' && b.crea.length <= 20) ? b.crea : null;
   const now = Date.now();
 
   // 같은 세션의 연속 제출 제한 (15초) — 스크립트 도배 방지
@@ -95,12 +97,13 @@ async function submit(req, env) {
 
   // 같은 uid의 최고 기록만 유지 (upsert)
   await env.DB.prepare(
-    `INSERT INTO scores (uid, nick, score, ts) VALUES (?1, ?2, ?3, ?4)
+    `INSERT INTO scores (uid, nick, score, crea, ts) VALUES (?1, ?2, ?3, ?4, ?5)
      ON CONFLICT(uid) DO UPDATE SET
        nick = ?2,
+       crea = ?4,
        score = CASE WHEN excluded.score > scores.score THEN excluded.score ELSE scores.score END,
-       ts = ?4`
-  ).bind(b.uid, nick, score, now).run();
+       ts = ?5`
+  ).bind(b.uid, nick, score, crea, now).run();
 
   // 순위 계산 (최고 기록 기준)
   const me = await env.DB.prepare('SELECT score FROM scores WHERE uid = ?1').bind(b.uid).first();
@@ -114,11 +117,11 @@ async function submit(req, env) {
 
 async function top(env) {
   const [{ results }, cnt] = await Promise.all([
-    env.DB.prepare('SELECT uid, nick, score, ts FROM scores ORDER BY score DESC, ts ASC LIMIT 10').all(),
+    env.DB.prepare('SELECT uid, nick, score, crea, ts FROM scores ORDER BY score DESC, ts ASC LIMIT 10').all(),
     env.DB.prepare('SELECT COUNT(*) c FROM scores').first(),
   ]);
   // uid는 절대 노출하지 않는다 — 노출되면 타인의 기록을 덮어쓸 수 있음
-  const list = results.map((r) => ({ nick: r.nick, score: r.score, ts: r.ts, tag: tagOf(r.uid) }));
+  const list = results.map((r) => ({ nick: r.nick, score: r.score, crea: r.crea, ts: r.ts, tag: tagOf(r.uid) }));
   return json({ list, total: cnt.c || 0 });
 }
 

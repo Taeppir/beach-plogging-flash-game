@@ -555,7 +555,7 @@ function track(name,data){
 async function lbSubmit(){
   if(API_ON){
     const r=await fetch(API_URL+'/submit',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({uid,nick,score,items:itemCount,drift:driftCount,dur:lastDur})});
+      body:JSON.stringify({uid,nick,score,crea:((creaFor(nick)||nickCrea)||{}).id||null,items:itemCount,drift:driftCount,dur:lastDur})});
     if(!r.ok)throw new Error(r.status);
     return await r.json(); // {rank,total,best}
   }
@@ -1106,7 +1106,8 @@ async function loadLB(){
     const medal=['🥇','🥈','🥉'][i]||('#'+(i+1));
     const rank=i<3?' r'+(i+1):''; // 1~3위만 메달색
     const me=(r.tag!=null)?(r.tag===myT&&r.nick===nick):(r.nick===nick);
-    return `<div class="lbrow ${me?'me':''}${rank}"><span class="rk">${medal}</span><span class="who">${nickIcoHTML(creaFor(r.nick))} ${esc(r.nick)}</span><span class="sc">${(r.score||0).toLocaleString()}</span></div>`;}).join('');
+    const ico=(r.crea&&CREATURES[r.crea])||creaFor(r.nick);   // 저장된 생물 우선, 없으면 닉에서 역추적
+    return `<div class="lbrow ${me?'me':''}${rank}"><span class="rk">${medal}</span><span class="who">${nickIcoHTML(ico)} ${esc(r.nick)}</span><span class="sc">${(r.score||0).toLocaleString()}</span></div>`;}).join('');
 }
 // 탭에 다시 돌아오면 리더보드 갱신 (10초 스로틀)
 let lastLB=0;
