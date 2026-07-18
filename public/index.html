@@ -336,7 +336,7 @@
         <div class="breakdown" id="rBreak"></div>
         <div class="myrank" id="myRank"></div>
         <div class="rbtns"><button class="again" id="againBtn">🔄 다시</button><button class="share" id="shareBtn">🏆 랭킹 등록</button></div>
-        <button class="invite" id="inviteBtn">📤 친구에게 도전장 보내기</button>
+        <button class="invite" id="inviteBtn">💌 감사카드 공유하기</button>
       </div>
     </div>
   </div>
@@ -394,12 +394,12 @@
 <div class="shareModal" id="shareModal" style="display:none">
   <div class="shareModal-inner">
     <button class="shareModal-close" id="shareClose" aria-label="닫기">✕</button>
-    <div class="shareModal-title">🎴 내 바다친구 카드</div>
+    <div class="shareModal-title">💌 바다친구가 보낸 감사카드</div>
     <img class="shareModal-img" id="shareImg" alt="바다친구 감사 카드">
     <div class="shareModal-btns">
-      <button class="shareModal-btn dl" id="shareGo" type="button">📤 결과 공유하기</button>
+      <button class="shareModal-btn dl" id="shareGo" type="button">💌 감사카드 공유하기</button>
     </div>
-    <div class="shareModal-hint">카드 이미지와 문구·링크를 함께 공유해<br>친구에게 도전장을 보내보세요!</div>
+    <div class="shareModal-hint">바다친구가 고마움을 전했어요<br>친구에게도 카드를 보내 함께 바다를 지켜요</div>
   </div>
 </div>
 
@@ -631,7 +631,7 @@ let playing=false,score=0,timeLeft=30,combo=0,comboT=0,spawnTimer=null,tickTimer
 
 function startGame(){
   ensureNick();
-  score=0;timeLeft=30;combo=0;caught={};driftCount=0;critterMiss=0;itemCount=0;gameStartTs=Date.now();
+  score=0;timeLeft=30;combo=0;caught={};driftCount=0;critterMiss=0;itemCount=0;gameStartTs=Date.now();buildIntro();
   document.getElementById('startOv').style.display='none';document.getElementById('resultOv').style.display='none';
   document.getElementById('score').textContent='0';document.getElementById('tsec').textContent='30';document.getElementById('tbar').style.width='100%';
   document.querySelectorAll('.trash').forEach(e=>{if(e._driftTimer)clearInterval(e._driftTimer);e.remove();});
@@ -641,11 +641,27 @@ function startGame(){
   tickTimer=setInterval(()=>{timeLeft--;document.getElementById('tsec').textContent=timeLeft;document.getElementById('tbar').style.width=(timeLeft/30*100)+'%';if(timeLeft<=10)bin.classList.add('moving');if(timeLeft<=5&&timeLeft>0)sfx.tick();if(timeLeft<=0)endGame();},1000);
   scheduleSpawn();
 }
-function scheduleSpawn(){if(!playing)return;spawn();const gap=Math.max(430,780-(30-timeLeft)*12);spawnTimer=setTimeout(scheduleSpawn,gap);}
+function scheduleSpawn(){if(!playing)return;spawn();const gap=Math.max(300,500-(30-timeLeft)*8);spawnTimer=setTimeout(scheduleSpawn,gap);}
+// 첫판 다양성: 매 게임 시작 시 서로 다른 재질 4종(플라스틱+3종)을 먼저 등장시켜 초반이 플라스틱으로만 도배되지 않게 한다.
+// 확률 모델(rollItem)은 그대로 — 초반 표본만 다양화하고, 큐가 비면 실제 pct 가중 확률로 복귀한다.
+let introQueue=[];
+function buildIntro(){
+  const plastic=ITEMS.find(i=>i.id==='plastic');
+  const pool=ITEMS.filter(i=>i.id!=='plastic');
+  const pick=[];
+  for(let k=0;k<2&&pool.length;k++){                 // pct 가중 비복원 추출로 서로 다른 3종
+    const tp=pool.reduce((s,i)=>s+i.pct,0); let r=Math.random()*tp,a=0,idx=0;
+    for(let j=0;j<pool.length;j++){a+=pool[j].pct;if(r<=a){idx=j;break;}}
+    pick.push(pool.splice(idx,1)[0]);
+  }
+  introQueue=[plastic,...pick];
+  for(let i=introQueue.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[introQueue[i],introQueue[j]]=[introQueue[j],introQueue[i]];}
+}
 function spawn(){
+  if(introQueue.length){spawnOne(false,introQueue.shift());return;}  // 초반: 다양한 쓰레기 먼저(동물·drift 없이)
   const r=Math.random();
   if(r<0.16)spawnOne(true);
-  else if(r<0.34)spawnCritter();
+  else if(r<0.29)spawnCritter();   // 동물 등장 18%→13%로 소폭 감소, 남은 비중은 쓰레기로
   else spawnOne(false);
 }
 // 일정 시간 뒤 페이드아웃 후 제거. 잡고 있는 동안엔 뺏지 않는다(드래그 중이면 취소).
@@ -674,8 +690,8 @@ function paintSprite(el,it){
   img.src=it.img;
   el.appendChild(img);
 }
-function spawnOne(drift){
-  const it=rollItem();
+function spawnOne(drift,forced){
+  const it=forced||rollItem();
   const el=document.createElement('div');
   el.className='trash sprite'+((drift||isBig(it))?' rare':'')+(drift?' drift':'');
   el.dataset.id=it.id;if(drift)el.dataset.drift='1';
@@ -816,14 +832,8 @@ async function loadShareCard(){
     return await r.blob();
   }finally{clearTimeout(t);}
 }
-// 이미지 공유 미지원 환경: 카드 미리보기 모달(이미지 저장·링크복사)
+// 이미지 공유 미지원 환경: 카드 미리보기 모달(길게 눌러 저장·링크복사) — 자동 다운로드는 하지 않는다
 let shareObjURL=null;
-// 카드 이미지를 정확히 1번만 다운로드 (앵커 1개 생성→click 1회→제거). blob 재생성 없음.
-function saveCardImage(objURL,filename){
-  const a=document.createElement('a');
-  a.href=objURL;a.download=filename;a.style.display='none';
-  document.body.appendChild(a);a.click();a.remove();
-}
 function openShareModal(blob,text,url){
   const modal=document.getElementById('shareModal');
   const img=document.getElementById('shareImg'),go=document.getElementById('shareGo');
@@ -831,7 +841,7 @@ function openShareModal(blob,text,url){
   if(shareObjURL)URL.revokeObjectURL(shareObjURL);
   shareObjURL=URL.createObjectURL(blob);
   img.src=shareObjURL;
-  go.disabled=false;go.textContent='📤 결과 공유하기';go.dataset.busy='0'; // 모달 열 때 상태 초기화(재오픈 시 버튼 잠김 방지)
+  go.disabled=false;go.textContent='💌 감사카드 공유하기';go.dataset.busy='0'; // 모달 열 때 상태 초기화(재오픈 시 버튼 잠김 방지)
   // .onclick= 할당 → openShareModal 재호출 시 핸들러가 누적되지 않고 교체됨(리스너 중복 방지)
   go.onclick=async()=>{
     if(go.dataset.busy==='1')return; // 한 클릭 처리 중 중복 실행(더블클릭 등) 차단
@@ -847,7 +857,7 @@ function openShareModal(blob,text,url){
           await navigator.share({files:[file],text,url,title:'30초 해변 플로깅'});
           return done('✓ 공유 완료'),track('share','image');
         }catch(e){
-          if(e&&e.name==='AbortError')return done('📤 결과 공유하기'); // 사용자가 닫음 — 종료(다운로드 안 함)
+          if(e&&e.name==='AbortError')return done('💌 감사카드 공유하기'); // 사용자가 닫음 — 종료(다운로드 안 함)
           /* 그 외 실패 → 2순위(문구만 공유)로 폴백. 다운로드로 새지 않게 */
         }
       }
@@ -856,22 +866,22 @@ function openShareModal(blob,text,url){
         await navigator.share({text,url,title:'30초 해변 플로깅'});
         return done('✓ 공유 완료'),track('share','native');
       }catch(e){
-        if(e&&e.name==='AbortError')return done('📤 결과 공유하기'); // 취소 — 종료(다운로드 안 함)
+        if(e&&e.name==='AbortError')return done('💌 감사카드 공유하기'); // 취소 — 종료(다운로드 안 함)
         /* 비-Abort 실패 → 다운로드 없이 복사만(share 존재 시 다운로드 창 금지) */
       }
       // share는 있으나 파일·문구 공유가 모두 비정상 실패 → 다운로드 없이 문구+링크 복사만
       const okS=await copyText(text+'\n'+url);
       if(okS)track('share','copy');
       go.textContent=okS?'🔗 링크 복사됨 ✓':'복사 실패';
-      setTimeout(()=>{go.textContent='📤 결과 공유하기';go.dataset.busy='0';},1800);
+      setTimeout(()=>{go.textContent='💌 감사카드 공유하기';go.dataset.busy='0';},1800);
       return;
     }
-    // 3순위: navigator.share 자체가 없을 때만 → 문구+링크 복사 + 카드 이미지 저장(같은 blob 재사용)
+    // 3순위: navigator.share가 없는 환경 → 자동 다운로드 없이 문구+링크만 복사.
+    //         카드 이미지는 모달에 그대로 떠 있으니 이미지를 길게 눌러 저장할 수 있다.
     const ok=await copyText(text+'\n'+url);
-    saveCardImage(shareObjURL,'beach-plogging-'+score+'.png');
     if(ok)track('share','copy');
-    go.textContent=ok?'🔗 복사 & 이미지 저장 ✓':'이미지 저장됨';
-    setTimeout(()=>{go.textContent='📤 결과 공유하기';go.dataset.busy='0';},1800);
+    go.textContent=ok?'🔗 링크 복사됨 ✓ · 카드는 길게 눌러 저장':'주소창에서 복사해주세요';
+    setTimeout(()=>{go.textContent='💌 감사카드 공유하기';go.dataset.busy='0';},2200);
   };
   modal.style.display='flex';
 }
@@ -886,10 +896,10 @@ async function copyText(s){
 }
 // 카드 로드가 실패할 때의 최종 폴백 — 텍스트/링크만 공유
 async function shareTextFallback(text,url,btn){
-  const done=(label,kind)=>{track('share',kind);btn.textContent=label;setTimeout(()=>{btn.disabled=false;btn.textContent='📤 친구에게 도전장 보내기';},2200);};
+  const done=(label,kind)=>{track('share',kind);btn.textContent=label;setTimeout(()=>{btn.disabled=false;btn.textContent='💌 감사카드 공유하기';},2200);};
   if(navigator.share){
-    try{await navigator.share({title:'30초 해변 플로깅',text,url});done('📤 공유 완료!','native');}
-    catch(e){btn.disabled=false;btn.textContent='📤 친구에게 도전장 보내기';}
+    try{await navigator.share({title:'30초 해변 플로깅',text,url});done('💌 공유 완료!','native');}
+    catch(e){btn.disabled=false;btn.textContent='💌 감사카드 공유하기';}
     return;
   }
   const ok=await copyText(text+'\n'+url);
@@ -901,26 +911,40 @@ document.getElementById('inviteBtn').addEventListener('click',async function(){
   const btn=this;
   const url=location.origin+location.pathname;
   // 세 경로(파일 공유·문구 폴백·모달 복사)가 모두 이 text 하나를 넘겨받는다
-  const text='🌊 30초 해변 플로깅으로 우리 바다를 지켰어요! 당신도 바다친구를 만나보세요 🎴';
-  btn.disabled=true;btn.textContent='🎴 카드 만드는 중…';
+  const text='🌊 방금 30초 해변 플로깅으로 바다를 지켰더니 바다친구가 감사카드를 보내줬어요 💌 당신도 만나보세요 🎴';
+  btn.disabled=true;btn.textContent='🎴 감사카드 준비 중…';
   // 1) 결과 화면에서 고정해둔 감사 카드를 Blob으로 로드
   let blob=null;
   try{blob=await loadShareCard();}catch(e){blob=null;}
   // 카드 로드 실패(404·네트워크·타임아웃) → 기존 텍스트/링크 공유로 폴백
-  if(!blob){btn.textContent='📤 친구에게 도전장 보내기';await shareTextFallback(text,url,btn);return;}
+  if(!blob){btn.textContent='💌 감사카드 공유하기';await shareTextFallback(text,url,btn);return;}
   const file=new File([blob],'beach-plogging.png',{type:'image/png'});
-  // 2) 모바일: 이미지 파일 첨부 공유 시트 (카톡·인스타·스토리·저장 등)
-  if(navigator.canShare&&navigator.canShare({files:[file]})){
+  const reset=()=>{btn.disabled=false;btn.textContent='💌 감사카드 공유하기';};
+  const okShare=(kind)=>{track('share',kind);btn.textContent='💌 공유 완료!';setTimeout(reset,2200);};
+  if(navigator.share){
+    // 2) 이미지 첨부 공유 시트 — canShare 판정이 불안정한 브라우저(삼성 인터넷 등)를 위해, canShare가 없으면 일단 시도한다.
+    const canFiles = navigator.canShare ? navigator.canShare({files:[file]}) : true;
+    if(canFiles){
+      try{
+        await navigator.share({files:[file],text:text+'\n'+url,title:'30초 해변 플로깅'});
+        return okShare('image');
+      }catch(e){
+        if(e&&e.name==='AbortError')return reset();   // 사용자가 시트를 닫음 — 종료(다운로드로 새지 않음)
+        /* 파일 공유가 막힌 경우 → 아래 문구 공유로 폴백 */
+      }
+    }
+    // 파일 공유가 안 되면 문구+링크라도 네이티브 공유 시트로 (자동 다운로드 대신)
     try{
-      await navigator.share({files:[file],text:text+'\n'+url,title:'30초 해변 플로깅'});
-      track('share','image');
-      btn.textContent='📤 공유 완료!';setTimeout(()=>{btn.disabled=false;btn.textContent='📤 친구에게 도전장 보내기';},2200);
-    }catch(e){/* 사용자가 공유 시트를 닫음 — 집계 안 함 */btn.disabled=false;btn.textContent='📤 친구에게 도전장 보내기';}
-    return;
+      await navigator.share({text:text+'\n'+url,title:'30초 해변 플로깅'});
+      return okShare('native');
+    }catch(e){
+      if(e&&e.name==='AbortError')return reset();
+      /* 네이티브 공유마저 실패 → 미리보기 모달(다운로드 없음) */
+    }
   }
-  // 3) 이미지 공유 미지원(PC·인앱브라우저 등): 카드 미리보기 + 저장/링크복사
+  // 3) navigator.share가 아예 없는 환경(구형·일부 인앱브라우저): 카드 미리보기 + 링크복사. 자동 다운로드는 하지 않는다.
   openShareModal(blob,text,url);
-  btn.disabled=false;btn.textContent='📤 친구에게 도전장 보내기';
+  reset();
 });
 // 1탭 인지 질문 — 1문항, 답하면 그 세션엔 다시 안 물음(rxdone)
 // 수치 출처: 국가해안쓰레기모니터링통계(MEIS) 유형별·연도별 (2018~2023, 60개 조사지점)
