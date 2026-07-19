@@ -1,4 +1,4 @@
-name = "plogging-api"
+name = "beach-plogging-flash-game"
 main = "api/worker.js"
 compatibility_date = "2025-01-01"
 
