@@ -130,6 +130,7 @@ async function top(env) {
 const EVENT_NAMES = new Set([
   'visit', 'game_start', 'replay', 'game_end',
   'rank_submit', 'meis_click', 'svc_click', 'insight_view', 'like', 'reaction', 'share', 'quiz',
+  'share_card_fail', // 감사카드 Blob 로드 실패(404·타임아웃·네트워크). share 지표를 부풀리지 않게 별도 name
 ]);
 
 async function event(req, env) {
