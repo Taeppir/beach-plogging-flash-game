@@ -4,3 +4,10 @@ assets_raw/
 
 .DS_Store
 node_modules/
+
+# wrangler 로컬 상태·캐시 — wrangler-account.json에 계정 ID와 계정명(이메일)이 들어간다.
+# 공개 저장소라 한 번 커밋되면 히스토리에 남으므로 절대 추적하지 않는다.
+.wrangler/
+# wrangler 로컬 시크릿(STATS_KEY 등). 지금은 없지만 만들면 반드시 무시되어야 한다.
+.dev.vars
+.dev.vars.*
