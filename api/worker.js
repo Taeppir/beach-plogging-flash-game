@@ -26,7 +26,11 @@ const json = (obj, status = 200) =>
   new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json', ...CORS } });
 
 // 30초 게임에서 물리적으로 가능한 상한 (플레이 검증용)
-const MAX_ITEMS = 70;                 // 스폰 간격 최소 430ms → 30초에 ~70개가 절대 상한
+// ⚠️ MAX_ITEMS는 index.html의 스폰 공식에 묶여 있다 — scheduleSpawn의 gap을 조이면 반드시 같이 올릴 것.
+//    낮으면 '잘한 사람만' 400 'implausible items'로 튕겨 최고 기록이 조용히 날아간다(실제로 한 번 발생).
+//    현재 공식 gap=max(220, 380-6e) → 30초에 ~105회 스폰, 생물 8%를 빼면 획득가능 ~97개.
+//    거기에 여유를 크게 둔 값이다. 상한을 넘길 만큼 잘하는 건 반칙이 아니므로 넉넉한 쪽이 맞다.
+const MAX_ITEMS = 200;
 const MAX_PER_ITEM = 2500 * 3 * 2;    // 최고 희귀템 2500점 × 드리프트 ×3 × 콤보 ×2
 const MIN_DUR = 27000, MAX_DUR = 60000;
 
