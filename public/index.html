@@ -482,6 +482,10 @@ async function sSet(k,v,sh){
   try{if(window.storage)return await window.storage.set(k,v,sh);}catch(e){}
   (sh?memS:memP)[k]=v;return{value:v};
 }
+// 읽기 헬퍼 — 없거나 실패하면 null. 호출부마다 try/catch와 g&&g.value를 반복하지 않게 한다.
+// 저장소 읽기 실패는 어디서든 "값 없음"으로 취급하므로 예외를 여기서 한 번만 삼킨다.
+async function sVal(k,sh){try{const g=await sGet(k,sh);return (g&&g.value)||null;}catch(e){return null;}}
+async function sJSON(k,sh){try{return JSON.parse(await sVal(k,sh));}catch(e){return null;}} // 깨진 값 = null
 async function sList(p,sh){
   try{if(window.storage)return await window.storage.list(p,sh);}catch(e){}
   const m=sh?memS:memP;return{keys:Object.keys(m).filter(k=>k.startsWith(p))};
@@ -560,7 +564,7 @@ async function lbSubmit(){
     return await r.json(); // {rank,total,best}
   }
   // 로컬 미리보기 폴백 — 실서비스와 동일하게 익명 ID가 키 (닉네임이 같아도 별도 기록)
-  const key='lb:'+uid; let prev=null; try{const g=await sGet(key,true);if(g&&g.value)prev=JSON.parse(g.value);}catch(e){}
+  const key='lb:'+uid; const prev=await sJSON(key,true);
   if(!prev||score>prev.score)await sSet(key,JSON.stringify({nick,score,ts:Date.now()}),true);
   else if(prev&&prev.nick!==nick){prev.nick=nick;await sSet(key,JSON.stringify(prev),true);}
   return null;
@@ -572,11 +576,12 @@ async function lbTop(){
     if(Array.isArray(j))return{list:j,total:j.length}; // 구버전 호환
     return{list:j.list||[],total:j.total||0};
   }
-  const rows=[];const r=await sList('lb:',true);for(const k of (r&&r.keys)||[]){try{const g=await sGet(k,true);if(g&&g.value)rows.push(JSON.parse(g.value));}catch(e){}}
+  const rows=[];const r=await sList('lb:',true);
+  for(const k of (r&&r.keys)||[]){const v=await sJSON(k,true);if(v)rows.push(v);}
   return{list:rows,total:rows.length};
 }
-async function likeGet(){if(API_ON){try{const r=await fetch(API_URL+'/likes');if(r.ok){const j=await r.json();return j.count||0;}}catch(e){}return 0;}try{const g=await sGet('likes',true);return g&&g.value?parseInt(g.value):0;}catch(e){return 0;}}
-async function likeAdd(){if(API_ON){try{await fetch(API_URL+'/like',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uid})});}catch(e){}return;}let n=0;try{const g=await sGet('likes',true);if(g&&g.value)n=parseInt(g.value);}catch(e){}await sSet('likes',String(n+1),true);}
+async function likeGet(){if(API_ON){try{const r=await fetch(API_URL+'/likes');if(r.ok){const j=await r.json();return j.count||0;}}catch(e){}return 0;}return parseInt(await sVal('likes',true))||0;}
+async function likeAdd(){if(API_ON){try{await fetch(API_URL+'/like',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uid})});}catch(e){}return;}const n=parseInt(await sVal('likes',true))||0;await sSet('likes',String(n+1),true);}
 
 // ===== 사운드 (WebAudio, 파일 없이 합성) + 햅틱 =====
 let AC=null,soundOn=true;
@@ -601,19 +606,20 @@ const sfx={
   end:()=>{beep(523,0.12,'triangle',0.12);setTimeout(()=>beep(659,0.12,'triangle',0.12),120);setTimeout(()=>beep(784,0.2,'triangle',0.12),240);}
 };
 async function initSound(){
-  try{const g=await sGet('snd',false);if(g&&g.value==='0')soundOn=false;}catch(e){}
+  if(await sVal('snd',false)==='0')soundOn=false;
   const tg=document.getElementById('sndTg');tg.textContent=soundOn?'🔊':'🔇';
   tg.addEventListener('click',async()=>{soundOn=!soundOn;tg.textContent=soundOn?'🔊':'🔇';await sSet('snd',soundOn?'1':'0',false);if(soundOn)sfx.drop(false);});
 }
 
 async function boot(){
-  try{const u=await sGet('uid',false);if(u&&u.value)uid=u.value;}catch(e){}
+  uid=await sVal('uid',false)||'';
   if(!uid){uid=makeUid();await sSet('uid',uid,false);} // 세션 한정 익명 ID (탭 닫으면 소멸)
-  try{const n=await sGet('nick',false);if(n&&n.value)nick=n.value;}catch(e){}
+  nick=await sVal('nick',false)||'';
   if(!nick){nick=autoNick();await sSet('nick',nick,false);} // 자동 채움 — 바로 시작 가능
-  try{const cs=await sGet('nickCrea',false);if(cs&&cs.value)nickCrea=SEA.find(s=>s.id===cs.value)||nickCrea;}catch(e){}
+  const cs=await sVal('nickCrea',false);
+  if(cs)nickCrea=SEA.find(s=>s.id===cs)||nickCrea;
   document.getElementById('nick').value=nick;syncNickIcon();
-  try{const d=await sGet('dex',false);if(d&&d.value)dex=JSON.parse(d.value);}catch(e){}
+  dex=await sJSON('dex',false)||{};
   renderDex(); loadLB(); initSound(); initRQ().then(renderRQ); initQuiz().then(renderQuiz);
   track('visit');
 }
@@ -641,7 +647,7 @@ function startGame(){
   score=0;timeLeft=30;combo=0;caught={};driftCount=0;critterMiss=0;itemCount=0;gameStartTs=Date.now();buildIntro();
   document.getElementById('startOv').style.display='none';document.getElementById('resultOv').style.display='none';
   document.getElementById('score').textContent='0';document.getElementById('tsec').textContent='30';document.getElementById('tbar').style.width='100%';
-  document.querySelectorAll('.trash').forEach(e=>{if(e._driftTimer)clearInterval(e._driftTimer);e.remove();});
+  clearTrash();
   bin.classList.remove('moving');
   playing=true;ac();
   playedThisSess++;track(playedThisSess>1?'replay':'game_start');
@@ -673,6 +679,10 @@ function spawn(){
   else if(r<0.16+critterChance)spawnCritter();
   else spawnOne(false);                   // 일반 쓰레기
 }
+// 무대 위 쓰레기·생물 일괄 제거. drift는 인터벌을 물고 있어 같이 끊지 않으면 게임이 끝나도 계속 돈다.
+function clearTrash(){document.querySelectorAll('.trash').forEach(e=>{if(e._driftTimer)clearInterval(e._driftTimer);e.remove();});}
+// 쓰레기통 반응 — 넣기 성공·실패 양쪽에서 같은 피드백을 준다
+function binHit(){bin.classList.add('hot');setTimeout(()=>bin.classList.remove('hot'),150);}
 // 일정 시간 뒤 페이드아웃 후 제거. 잡고 있는 동안엔 뺏지 않는다(드래그 중이면 취소).
 function fadeKill(el,ms){
   return setTimeout(()=>{
@@ -681,15 +691,31 @@ function fadeKill(el,ms){
     setTimeout(()=>el.remove(),300);
   },ms);
 }
+// 무대 안 무작위 배치 — 쓰레기와 생물이 같은 밴드를 쓴다. 밴드를 옮기려면 여기 한 곳만 고친다.
+function placeRandom(el){
+  el.style.left=(8+Math.random()*78)+'%';
+  el.style.top=(56+Math.random()*36)+'%';
+  el._kill=fadeKill(el,2600);
+}
+// 화면 밖에서 가로로 흘러 들어오는 배치 — 수명은 화면을 벗어날 때까지(fadeKill 없음).
+function placeDrift(el){
+  const dir=Math.random()<0.5?1:-1; let x=dir>0?-8:106;
+  el.style.top=(33+Math.random()*13)+'%';el.style.left=x+'%';
+  el._driftTimer=setInterval(()=>{x+=dir*1.7;el.style.left=x+'%';if(x<-14||x>114){clearInterval(el._driftTimer);el.remove();}},28);
+}
+// 스폰 공통 골격 — 생성·스프라이트·드래그·무대 투입. 배치와 수명은 place가, 표식은 data가 정한다.
+function spawnEl(it,cls,place,data){
+  const el=document.createElement('div');
+  el.className=cls;
+  el.dataset.id=it.id;
+  if(data)Object.assign(el.dataset,data);
+  paintSprite(el,it);
+  place(el);
+  attachDrag(el,it);stage.appendChild(el);
+}
 function spawnCritter(){
   const it=CRITTERS[Math.floor(Math.random()*CRITTERS.length)];
-  const el=document.createElement('div');
-  el.className='trash critter sprite'+(it.fixed?' fixed':'');
-  el.dataset.id=it.id;el.dataset.bad='1';
-  paintSprite(el,it);
-  const x=8+Math.random()*78, y=56+Math.random()*36; el.style.left=x+'%';el.style.top=y+'%';
-  el._kill=fadeKill(el,2600);
-  attachDrag(el,it);stage.appendChild(el);
+  spawnEl(it,'trash critter sprite'+(it.fixed?' fixed':''),placeRandom,{bad:'1'});
 }
 // 스프라이트로 그리되, PNG가 안 뜨면 기존 이모지로 되돌린다(.sprite를 떼면 .trash의 34px가 적용됨)
 function paintSprite(el,it){
@@ -701,19 +727,8 @@ function paintSprite(el,it){
 }
 function spawnOne(drift,forced){
   const it=forced||rollItem();
-  const el=document.createElement('div');
-  el.className='trash sprite'+((drift||isBig(it))?' rare':'')+(drift?' drift':'');
-  el.dataset.id=it.id;if(drift)el.dataset.drift='1';
-  paintSprite(el,it);
-  if(drift){
-    const dir=Math.random()<0.5?1:-1; let x=dir>0?-8:106; const y=33+Math.random()*13;
-    el.style.top=y+'%';el.style.left=x+'%';
-    el._driftTimer=setInterval(()=>{x+=dir*1.7;el.style.left=x+'%';if(x<-14||x>114){clearInterval(el._driftTimer);el.remove();}},28);
-  } else {
-    const x=8+Math.random()*78, y=56+Math.random()*36; el.style.left=x+'%';el.style.top=y+'%';
-    el._kill=fadeKill(el,2600);
-  }
-  attachDrag(el,it);stage.appendChild(el);
+  spawnEl(it,'trash sprite'+((drift||isBig(it))?' rare':'')+(drift?' drift':''),
+    drift?placeDrift:placeRandom, drift?{drift:'1'}:null);
 }
 
 let drag=null;
@@ -751,7 +766,7 @@ function deposit(it,el){
     document.getElementById('score').textContent=score;
     floatMsg(`−${CRITTER_PENALTY} ${it.emoji} 바다 생물!`, '#e0574a');
     sfx.bad();vib(70);
-    bin.classList.add('hot');setTimeout(()=>bin.classList.remove('hot'),150);
+    binHit();
     removeEl(el);return;
   }
   combo++;clearTimeout(comboT);comboT=setTimeout(()=>combo=0,1400);
@@ -761,7 +776,7 @@ function deposit(it,el){
   caught[it.id]=(caught[it.id]||0)+1;if(!dex[it.id])dex[it.id]=1;if(drift)driftCount++;
   floatMsg((drift?'🌊 ':'')+'+'+gain+(mult>1&&!drift?' 🔥':(drift?' ×3':'')), drift?'#1478a0':(isBig(it)?'#c77a1e':'#2596b8'));
   if(drift){sfx.drift();vib([20,30,20]);}else{sfx.drop(isBig(it));vib(15);}
-  bin.classList.add('hot');setTimeout(()=>bin.classList.remove('hot'),150);
+  binHit();
   if(combo>=3){const c=document.getElementById('combo');c.textContent=combo+' COMBO! ×2';c.classList.add('show');clearTimeout(c._t);c._t=setTimeout(()=>c.classList.remove('show'),700);sfx.combo();}
   removeEl(el);
 }
@@ -769,7 +784,7 @@ function release(){if(!drag)return;const el=drag.el;el.classList.remove('draggin
 
 function endGame(){
   playing=false;clearInterval(tickTimer);clearTimeout(spawnTimer);drag=null;bin.classList.remove('moving');
-  document.querySelectorAll('.trash').forEach(e=>{if(e._driftTimer)clearInterval(e._driftTimer);e.remove();});
+  clearTrash();
   lastDur=Date.now()-gameStartTs;
   sfx.end();vib([30,50,30]);
   track('game_end',JSON.stringify({score,items:itemCount,drift:driftCount,critter:critterMiss}));
@@ -941,7 +956,7 @@ const RQ=[
 const RQ_OPTS=[['new','😲 처음 알았어'],['vague','🤔 어렴풋이'],['knew','😎 알고 있었어']];
 let rqAnswered=false;
 async function initRQ(){
-  try{const a=await sGet('rxdone',false);rqAnswered=!!(a&&a.value);}catch(e){}
+  rqAnswered=!!await sVal('rxdone',false);
 }
 function renderRQ(){
   const card=document.getElementById('rqCard'),wrap=document.getElementById('reactWrap');
@@ -974,20 +989,21 @@ function renderRQ(){
 // 폰트 블록이 같이 거는 -webkit-font-smoothing:none이 그 폴백 글리프의 AA까지 꺼서 20px에선 계단이 보인다.
 // (13px인 .card .h .t의 📖📊🏆는 같은 이유로 티가 안 날 뿐이다.)
 // 저장·집계 값은 라벨이 아니라 앞의 코드('O'/'X'/'plastic'…)라 라벨을 바꿔도 7c 집계 키는 안 흔들린다.
+const OX=[['O','맞아요'],['X','아니에요']]; // O/X 문항 공용 보기 — 읽기만 하므로 참조 공유해도 안전
 const QUIZ=[
   {id:'q1',type:'ox',q:'우리 바다에선 평균 매년 약 4톤의 해안 쓰레기가 수거된다',
-   opts:[['O','맞아요'],['X','아니에요']],ans:'O',
+   opts:OX,ans:'O',
    why:'해양환경공단이 2018~2023년 조사한 결과, 6년간 총 23톤·연평균 약 3.9톤이 수거됐어요'},
   {id:'q2',type:'mc',q:'해안 쓰레기의 대부분을 차지하는 건?',
    opts:[['plastic','플라스틱'],['glass','유리'],['rubber','고무']],ans:'plastic',
    why:'해양환경공단 조사(2018~2023) 결과, 전체 480,052개 중 87.4%인 419,456개가 플라스틱이에요'},
   {id:'q3',type:'ox',q:'우리 해안에서 발견된 쓰레기 중엔 외국에서 떠내려온 것도 있다',
-   opts:[['O','맞아요'],['X','아니에요']],ans:'O',
+   opts:OX,ans:'O',
    why:'2018~2023년 조사에서 외국에서 온 쓰레기가 8,753개(전체의 1.8%) 발견됐어요'}
 ];
 let qzAns={},qzIdx=0;  // qzAns={문항id:고른 보기}. 여기 키가 있으면 = 이미 답한 = 잠긴 문항.
 async function initQuiz(){
-  try{const g=await sGet('quiz',false);const v=g&&g.value?JSON.parse(g.value):null;if(v&&typeof v==='object')qzAns=v;}catch(e){qzAns={};}
+  const v=await sJSON('quiz',false);if(v&&typeof v==='object')qzAns=v;
 }
 // 응답이 지나는 유일한 지점 — 로컬 저장과 집계 전송이 둘 다 여기를 지난다.
 // 세션당 1회는 호출부의 재선택 잠금과, 복원 경로가 qzPaint만 부르고 이 함수를 안 부르는 것으로
@@ -1106,8 +1122,7 @@ async function initPromo(){
   // likeAdd()가 이미 name='like' 행을 남긴다 — track('like')를 같이 부르면 한 번의 좋아요가 2행이 된다.
   // likeAdd만 남긴 이유는 await로 쓰기가 끝난 뒤 likeGet()이 갱신된 수를 읽어야 해서(track은 beacon이라 완료를 못 기다린다).
   btn.addEventListener('click',async()=>{
-    let already=false;try{const g=await sGet('liked',false);already=!!(g&&g.value);}catch(e){}
-    if(already)return; // 이미 누른 세션 — 초기 표시값을 막지 않도록 likeFresh는 건드리지 않는다
+    if(await sVal('liked',false))return; // 이미 누른 세션 — 초기 표시값을 막지 않도록 likeFresh는 건드리지 않는다
     likeFresh=true;    // 여기서부터 이 클릭이 수치를 책임진다
     await sSet('liked','1',false);btn.classList.add('done');await likeAdd();
     cnt.textContent=(await likeGet()).toLocaleString();
@@ -1120,8 +1135,7 @@ async function initPromo(){
   // 표시값 채우기는 리스너를 다 붙인 뒤 — 늦게 와도 버튼은 이미 살아 있다.
   const c=await likeGet();
   if(!likeFresh)cnt.textContent=c.toLocaleString(); // 그 사이 클릭이 있었으면 그쪽 수치가 최신
-  let liked=false;try{const g=await sGet('liked',false);liked=!!(g&&g.value);}catch(e){}
-  if(liked)btn.classList.add('done');
+  if(await sVal('liked',false))btn.classList.add('done');
 }
 // 인사이트 카드 실제 노출 측정 (세션당 1회)
 (function(){
