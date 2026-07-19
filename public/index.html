@@ -390,7 +390,7 @@
   <footer>*데이터 출처: MEIS 국가해안쓰레기 모니터링통계</footer>
 </div>
 
-<!-- 공유 카드 미리보기 모달 — 이미지 첨부 공유가 안 되는 환경(PC·카톡 인앱브라우저 등)에서 표시 -->
+<!-- 공유 카드 미리보기 모달 — 모든 환경에서 공유는 이 화면을 거친다(기기별로 흐름이 갈리지 않게) -->
 <div class="shareModal" id="shareModal" style="display:none">
   <div class="shareModal-inner">
     <button class="shareModal-close" id="shareClose" aria-label="닫기">✕</button>
@@ -399,7 +399,7 @@
     <div class="shareModal-btns">
       <button class="shareModal-btn dl" id="shareGo" type="button">💌 감사카드 공유하기</button>
     </div>
-    <div class="shareModal-hint">바다친구가 고마움을 전했어요<br>친구에게도 카드를 보내 함께 바다를 지켜요</div>
+    <div class="shareModal-hint">친구에게도 카드를 보내 함께 바다를 지켜요<br>카드를 길게 누르면 저장할 수 있어요</div>
   </div>
 </div>
 
@@ -839,7 +839,7 @@ const SHARE_CARDS=['images/card_01.png','images/card_02.png','images/card_03.png
 let shareCardSrc=SHARE_CARDS[0];
 function pickShareCard(){shareCardSrc=SHARE_CARDS[Math.floor(Math.random()*SHARE_CARDS.length)];}
 // 고정된 카드를 Blob으로 로드. 상대경로(동일 Pages 도메인)라 CORS 무관.
-// 404·네트워크 실패·3초 초과 시 throw → 호출부가 shareTextFallback(문구 공유)으로 폴백.
+// 404·네트워크 실패·3초 초과 시 throw → 호출부는 카드 없이 모달을 띄운다(문구·링크만 공유).
 async function loadShareCard(){
   const ac=new AbortController(),t=setTimeout(()=>ac.abort(),3000);
   try{
@@ -848,60 +848,67 @@ async function loadShareCard(){
     return await r.blob();
   }finally{clearTimeout(t);}
 }
-// 이미지 공유 미지원 환경: 카드 미리보기 모달(길게 눌러 저장·링크복사) — 자동 다운로드는 하지 않는다
+const SHARE_TITLE='30초 해변 플로깅';
+const gameURL=()=>location.origin+location.pathname;
+// 취소 판정 — 표준은 AbortError지만 구형 사파리·일부 인앱 WebView는 평범한 Error로 거부한다.
+// 취소를 실패로 오인하면 사용자가 방금 닫은 시트를 다시 띄우게 된다.
+const isAbort=e=>!!e&&(e.name==='AbortError'||/abort|cancel/i.test(e.message||''));
+
+// 모든 공유가 지나는 단 하나의 실행부. 반환값이 그대로 share 지표 값이 된다.
+//   'image'  파일+문구 공유 성공   'native' 문구+링크 공유 성공
+//   'copy'   클립보드 복사        'cancel' 사용자가 닫음   'fail' 전부 실패
+// payload 규칙 — 파일이 붙으면 공유 대상이 url 필드를 대부분 무시하므로 url을 text에 인라인하고,
+// 파일이 없으면 url을 분리해 넘겨 링크 미리보기가 살아나게 한다. 모양이 갈리는 곳은 여기뿐이다.
+async function shareOut(text,url,file){
+  if(navigator.share){
+    if(file){
+      try{
+        // canShare가 없으면 일단 시도 — 판정이 불안정한 브라우저(삼성 인터넷 등) 대응
+        if(navigator.canShare?navigator.canShare({files:[file]}):true){
+          await navigator.share({files:[file],text:text+'\n'+url,title:SHARE_TITLE});
+          return 'image';
+        }
+      }catch(e){if(isAbort(e))return 'cancel';} // 그 외 실패 → 파일 없이 재시도
+    }
+    try{await navigator.share({title:SHARE_TITLE,text,url});return 'native';}
+    catch(e){if(isAbort(e))return 'cancel';}    // 그 외 실패 → 클립보드로
+  }
+  return await copyText(text+'\n'+url)?'copy':'fail';
+}
+const SHARE_MSG={image:'💌 공유 완료!',native:'💌 공유 완료!',copy:'🔗 링크 복사됨 ✓',fail:'복사 실패 — 주소창에서 복사해주세요'};
+// 공유 버튼 공통 처리 — 중복 클릭 차단·집계·라벨 복원을 한 곳에서 책임진다.
+// 복원을 빠뜨리면 버튼이 결과 문구에 고착되므로, 어느 경로로 끝나든 idle로 되돌린다.
+// prefix: 지표 네임스페이스('' = 감사카드, 'link_' = 링크 공유)
+async function runShare(btn,idle,text,url,file,prefix){
+  if(btn.dataset.busy==='1')return;             // 처리 중 중복 클릭(더블탭) 차단
+  btn.dataset.busy='1';
+  const back=()=>{btn.textContent=idle;btn.dataset.busy='0';};
+  const st=await shareOut(text,url,file);
+  if(st==='cancel')return back();               // 사용자가 닫음 — 조용히 원복
+  if(st!=='fail')track('share',prefix+st);
+  btn.textContent=SHARE_MSG[st];
+  setTimeout(back,2200);
+}
+// 감사카드 미리보기 + 공유 — 기기가 뭘 지원하든 공유는 항상 이 화면 하나를 거친다.
+// 공유 호출이 사용자의 버튼 탭에서 바로 일어나므로 user activation이 살아 있다
+// (카드를 await로 받은 뒤 곧장 share를 부르면 iOS에서 NotAllowedError로 막힌다).
 let shareObjURL=null;
 function openShareModal(blob,text,url){
-  const modal=document.getElementById('shareModal');
   const img=document.getElementById('shareImg'),go=document.getElementById('shareGo');
-  // 앞서 만든 카드 blob 하나만 사용(미리보기·저장·공유 모두 동일 objURL). 이전 것은 해제.
-  if(shareObjURL)URL.revokeObjectURL(shareObjURL);
-  shareObjURL=URL.createObjectURL(blob);
-  img.src=shareObjURL;
-  go.disabled=false;go.textContent='💌 감사카드 공유하기';go.dataset.busy='0'; // 모달 열 때 상태 초기화(재오픈 시 버튼 잠김 방지)
-  // .onclick= 할당 → openShareModal 재호출 시 핸들러가 누적되지 않고 교체됨(리스너 중복 방지)
-  go.onclick=async()=>{
-    if(go.dataset.busy==='1')return; // 한 클릭 처리 중 중복 실행(더블클릭 등) 차단
-    go.dataset.busy='1';
-    // canShare 판정용 File과 실제 share에 넘기는 File을 동일 객체로 사용(타입·파일명 일치)
-    const file=new File([blob],'beach-plogging.png',{type:'image/png'});
-    const done=(label)=>{go.textContent=label;go.dataset.busy='0';};
-    // navigator.share가 존재하는 한 다운로드 창은 절대 띄우지 않는다.
-    if(navigator.share){
-      // 1순위: 이미지+문구+링크 공유 시트 (안드로이드·iOS)
-      // canShare가 없으면 일단 시도 — inviteBtn 핸들러와 같은 판정. 어긋나면 같은 기기에서 모달만 이미지 공유를 건너뛴다.
-      const canFiles = navigator.canShare ? navigator.canShare({files:[file]}) : true;
-      if(canFiles){
-        try{
-          await navigator.share({files:[file],text,url,title:'30초 해변 플로깅'});
-          return done('✓ 공유 완료'),track('share','image');
-        }catch(e){
-          if(e&&e.name==='AbortError')return done('💌 감사카드 공유하기'); // 사용자가 닫음 — 종료(다운로드 안 함)
-          /* 그 외 실패 → 2순위(문구만 공유)로 폴백. 다운로드로 새지 않게 */
-        }
-      }
-      // 2순위: 이미지 공유가 안 되면 문구+링크만이라도 공유 시트로 (다운로드 대신)
-      try{
-        await navigator.share({text,url,title:'30초 해변 플로깅'});
-        return done('✓ 공유 완료'),track('share','native');
-      }catch(e){
-        if(e&&e.name==='AbortError')return done('💌 감사카드 공유하기'); // 취소 — 종료(다운로드 안 함)
-        /* 비-Abort 실패 → 다운로드 없이 복사만(share 존재 시 다운로드 창 금지) */
-      }
-      // share는 있으나 파일·문구 공유가 모두 비정상 실패 → 다운로드 없이 문구+링크 복사만
-      const okS=await copyText(text+'\n'+url);
-      if(okS)track('share','copy');
-      go.textContent=okS?'🔗 링크 복사됨 ✓':'복사 실패';
-      setTimeout(()=>{go.textContent='💌 감사카드 공유하기';go.dataset.busy='0';},1800);
-      return;
-    }
-    // 3순위: navigator.share가 없는 환경 → 자동 다운로드 없이 문구+링크만 복사.
-    //         카드 이미지는 모달에 그대로 떠 있으니 이미지를 길게 눌러 저장할 수 있다.
-    const ok=await copyText(text+'\n'+url);
-    if(ok)track('share','copy');
-    go.textContent=ok?'🔗 링크 복사됨 ✓ · 카드는 길게 눌러 저장':'주소창에서 복사해주세요';
-    setTimeout(()=>{go.textContent='💌 감사카드 공유하기';go.dataset.busy='0';},2200);
+  // 카드 blob 하나만 사용(미리보기·공유 동일 objURL). 이전 것은 해제.
+  if(shareObjURL){URL.revokeObjectURL(shareObjURL);shareObjURL=null;}
+  if(blob){shareObjURL=URL.createObjectURL(blob);img.src=shareObjURL;img.style.display='';}
+  else img.style.display='none';                // 카드 로드 실패 — 문구·링크만 공유(화면·흐름은 그대로)
+  const idle=blob?'💌 감사카드 공유하기':'🔗 링크 공유하기';
+  go.textContent=idle;go.dataset.busy='0';      // 재오픈 시 상태 초기화(버튼 잠김 방지)
+  // .onclick= 할당 → 재호출 시 핸들러가 누적되지 않고 교체된다(리스너 중복 방지)
+  go.onclick=()=>{
+    // File 생성이 막힌 환경(일부 인앱 WebView)에서도 문구 공유는 되게 — 실패해도 흐름을 끊지 않는다
+    let file=null;
+    if(blob){try{file=new File([blob],'beach-plogging.png',{type:'image/png'});}catch(e){}}
+    runShare(go,idle,text,url,file,'');
   };
-  modal.style.display='flex';
+  document.getElementById('shareModal').style.display='flex';
 }
 function closeShareModal(){document.getElementById('shareModal').style.display='none';}
 document.getElementById('shareClose').addEventListener('click',closeShareModal);
@@ -912,62 +919,17 @@ async function copyText(s){
   try{const ta=document.createElement('textarea');ta.value=s;ta.style.position='fixed';ta.style.opacity='0';
     document.body.appendChild(ta);ta.select();const ok=document.execCommand('copy');document.body.removeChild(ta);return ok;}catch(e){return false;}
 }
-// 카드 로드가 실패할 때의 최종 폴백 — 텍스트/링크만 공유
-async function shareTextFallback(text,url,btn){
-  const done=(label,kind)=>{track('share',kind);btn.textContent=label;setTimeout(()=>{btn.disabled=false;btn.textContent='💌 바다친구가 보낸 감사카드 공유';},2200);};
-  if(navigator.share){
-    try{await navigator.share({title:'30초 해변 플로깅',text,url});return done('💌 공유 완료!','native');}
-    catch(e){
-      if(e&&e.name==='AbortError'){btn.disabled=false;btn.textContent='💌 바다친구가 보낸 감사카드 공유';return;} // 사용자가 닫음 — 종료
-      /* 비-Abort 실패(카드 로드 대기 중 user activation 만료 등) → 아래 클립보드 복사로 폴백.
-         형제 경로(openShareModal·inviteBtn)와 동일하게, 실패를 취소로 오인해 막다른 길로 끝내지 않는다. */
-    }
-  }
-  const ok=await copyText(text+'\n'+url);
-  if(ok)done('🔗 링크 복사됨 ✓','copy');
-  // 라벨을 되돌리지 않으면 공유 버튼이 에러 문구로 고착된다 — openShareModal과 같게 복원
-  else{btn.disabled=false;btn.textContent='복사 실패 — 주소창에서 복사해주세요';setTimeout(()=>{btn.textContent='💌 바다친구가 보낸 감사카드 공유';},2200);}
-}
-// 친구에게 공유 — 감사 카드 이미지 공유. 실제 완료 시에만 집계
+// 친구에게 공유 — 카드를 먼저 받아 미리보기 모달을 띄운다. 실제 공유는 모달 안에서.
 document.getElementById('inviteBtn').addEventListener('click',async function(){
-  const btn=this;
-  const url=location.origin+location.pathname;
-  // 세 경로(파일 공유·문구 폴백·모달 복사)가 모두 이 text 하나를 넘겨받는다
-  const text='🌊 방금 30초 해변 플로깅으로 바다를 지켰더니 바다친구가 감사카드를 보내줬어요 💌';
+  const btn=this,idle='💌 바다친구가 보낸 감사카드 공유';
   btn.disabled=true;btn.textContent='🎴 감사카드 준비 중…';
-  // 1) 결과 화면에서 고정해둔 감사 카드를 Blob으로 로드
   let blob=null;
   // 실패를 조용히 삼키면 카드 공유가 100% 깨져도 지표는 정상으로 보인다 — 사유를 남긴다
-  try{blob=await loadShareCard();}catch(e){blob=null;track('share_card_fail',(e&&e.name)||'error');}
-  // 카드 로드 실패(404·네트워크·타임아웃) → 기존 텍스트/링크 공유로 폴백
-  if(!blob){btn.textContent='💌 바다친구가 보낸 감사카드 공유';await shareTextFallback(text,url,btn);return;}
-  const file=new File([blob],'beach-plogging.png',{type:'image/png'});
-  const reset=()=>{btn.disabled=false;btn.textContent='💌 바다친구가 보낸 감사카드 공유';};
-  const okShare=(kind)=>{track('share',kind);btn.textContent='💌 공유 완료!';setTimeout(reset,2200);};
-  if(navigator.share){
-    // 2) 이미지 첨부 공유 시트 — canShare 판정이 불안정한 브라우저(삼성 인터넷 등)를 위해, canShare가 없으면 일단 시도한다.
-    const canFiles = navigator.canShare ? navigator.canShare({files:[file]}) : true;
-    if(canFiles){
-      try{
-        await navigator.share({files:[file],text:text+'\n'+url,title:'30초 해변 플로깅'});
-        return okShare('image');
-      }catch(e){
-        if(e&&e.name==='AbortError')return reset();   // 사용자가 시트를 닫음 — 종료(다운로드로 새지 않음)
-        /* 파일 공유가 막힌 경우 → 아래 문구 공유로 폴백 */
-      }
-    }
-    // 파일 공유가 안 되면 문구+링크라도 네이티브 공유 시트로 (자동 다운로드 대신)
-    try{
-      await navigator.share({text:text+'\n'+url,title:'30초 해변 플로깅'});
-      return okShare('native');
-    }catch(e){
-      if(e&&e.name==='AbortError')return reset();
-      /* 네이티브 공유마저 실패 → 미리보기 모달(다운로드 없음) */
-    }
-  }
-  // 3) navigator.share가 아예 없는 환경(구형·일부 인앱브라우저): 카드 미리보기 + 링크복사. 자동 다운로드는 하지 않는다.
-  openShareModal(blob,text,url);
-  reset();
+  try{blob=await loadShareCard();}catch(e){track('share_card_fail',(e&&e.name)||'error');}
+  // 카드가 없어도 모달은 띄운다(문구·링크 공유) — 환경에 따라 화면이 갈리지 않게.
+  // finally로 버튼을 되살려, 모달을 띄우다 실패해도 '준비 중…'에 고착되지 않는다.
+  try{openShareModal(blob,'🌊 방금 30초 해변 플로깅으로 바다를 지켰더니 바다친구가 감사카드를 보내줬어요 💌',gameURL());}
+  finally{btn.disabled=false;btn.textContent=idle;}
 });
 // 1탭 인지 질문 — 1문항, 답하면 그 세션엔 다시 안 물음(rxdone)
 // 수치 출처: 국가해안쓰레기모니터링통계(MEIS) 유형별·연도별 (2018~2023, 60개 조사지점)
@@ -1150,23 +1112,11 @@ async function initPromo(){
     await sSet('liked','1',false);btn.classList.add('done');await likeAdd();
     cnt.textContent=(await likeGet()).toLocaleString();
   });
-  // 링크 공유 — 결과 카드 공유(inviteBtn)와 달리 이미지 없이 게임 링크만. 공유 시트 → 실패 시 클립보드 복사
+  // 링크 공유 — 감사카드 공유(inviteBtn)와 달리 이미지 없이 게임 링크만. 실행부·집계는 runShare가 공유한다.
   const sb=document.getElementById('linkShareBtn');
-  sb.addEventListener('click',async()=>{
-    if(sb.dataset.busy==='1')return; // 처리 중 중복 클릭 차단
-    sb.dataset.busy='1';
-    const reset=()=>{sb.textContent='🔗 공유하기';sb.dataset.busy='0';};
-    const url=location.origin+location.pathname;
-    const text='🏖️ 실제 국가해안쓰레기 데이터로 만든 30초 플로깅 게임! 우리 바다에 뭐가 버려졌는지 주우면서 확인해보세요 🌊';
-    if(navigator.share){
-      try{await navigator.share({title:'30초 해변 플로깅',text,url});track('share','link_native');return reset();}
-      catch(e){if(e&&e.name==='AbortError')return reset(); /* 그 외 실패 → 복사로 폴백 */}
-    }
-    const ok=await copyText(text+'\n'+url);
-    if(ok)track('share','link_copy');
-    sb.textContent=ok?'✓ 링크 복사됨':'복사 실패';
-    setTimeout(reset,1800);
-  });
+  sb.addEventListener('click',()=>runShare(sb,'🔗 공유하기',
+    '🏖️ 실제 국가해안쓰레기 데이터로 만든 30초 플로깅 게임! 우리 바다에 뭐가 버려졌는지 주우면서 확인해보세요 🌊',
+    gameURL(),null,'link_'));
   // 표시값 채우기는 리스너를 다 붙인 뒤 — 늦게 와도 버튼은 이미 살아 있다.
   const c=await likeGet();
   if(!likeFresh)cnt.textContent=c.toLocaleString(); // 그 사이 클릭이 있었으면 그쪽 수치가 최신
