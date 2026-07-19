@@ -9,7 +9,7 @@
 <meta property="og:description" content="오늘의 플로깅 랭킹 1위는? 실제 해안쓰레기 데이터로 겨루는 30초 온라인 플로깅 챌린지, 지금 도전하세요!">
 <meta property="og:type" content="website">
 <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/galmuri@2.40.3/dist/galmuri.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/@kfonts/neodgm@0.5.0/index.css" rel="stylesheet">
 <style>
   :root{
     --ink:#20333d;--muted:#5f7c8a;--faint:#93aeba;
@@ -20,7 +20,7 @@
     --amber:#f0a92c;--gold:#f2b134;--gold-d:#c6870f;
     --mint:#2bb08a;--purple:#8f78d8;--line:#e2d9c2;
     --sans:'Pretendard',system-ui,sans-serif;   /* 본문 — 작은 글씨 가독성 */
-    --disp:'Galmuri11',system-ui,sans-serif;    /* 픽셀 디스플레이 — 크고 굵은 것만 */
+    --disp:'Neo둥근모','NeoDunggeunmo',system-ui,sans-serif;  /* 픽셀 디스플레이 — 크고 굵은 것만 */
     --sh:5px 5px 0 rgba(22,36,45,.18);--sh-sm:3px 3px 0 rgba(22,36,45,.16);}
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
   /* <b>의 UA 기본값은 bolder — 부모가 700인 곳(.myrank·.rq·좋아요 카운트)에서 900으로 튄다.
@@ -265,14 +265,15 @@
   .qsum-d{font-family:var(--sans);font-size:11px;color:var(--muted);margin-top:5px;line-height:1.6}
 
   /* ===== 폰트 하이브리드 — 픽셀 폰트를 쓰는 곳의 유일한 정의 =====
-     본문은 Pretendard(--sans)가 기본이고, '크고 굵은 것'만 여기서 Galmuri11로 덮는다.
+     본문은 Pretendard(--sans)가 기본이고, '크고 굵은 것'만 여기서 Neo둥근모로 덮는다.
      개별 규칙과 셀렉터가 동일해 나중에 선언된 이 블록이 이긴다 — 폰트를 바꾸려면 여기만 고치면 된다.
      AA를 함께 꺼야 픽셀이 뭉개지지 않는다(본문은 body에서 antialiased).
      13~14px이라 '16px 미만' 보조 기준엔 걸리지만, 명시적으로 헤더·버튼 라벨·HUD·등급인 것은 포함했다.
      .rule-hi도 같은 이유로 포함 — 규칙 한 줄짜리 강조고, 풀어쓴 예시(.rule-ex)가 바로 아래 Pretendard로 따라붙는다.
-     이름이 Galmuri'11'이지만 픽셀 그리드는 11의 배수가 아니라 12의 배수다(unitsPerEm 1200, 글리프 좌표가 전부
-     100 단위 = em당 12픽셀). 즉 획이 완전히 균일한 크기는 12·24·36px뿐이고, 22px은 1.83배라 13px(1.08배)보다
-     오히려 더 뭉개진다. 여기 13px들은 어긋난 배율이지만 DPR 2~3 모바일에선 오차가 서브픽셀이라 보이지 않는다. */
+     Neo둥근모의 픽셀 그리드는 16의 배수다(unitsPerEm 1024, 글리프 좌표가 전부 64 단위 = em당 16픽셀 —
+     neodgm.ttf의 head·glyf를 직접 재서 확인). 즉 획이 완전히 균일한 크기는 16·32·48px뿐이다.
+     .bigbtn의 16px만 정확히 맞고 나머지(13px=0.81배, 20px=1.25배, .score-big 44px=2.75배)는 어긋난 배율이지만,
+     DPR 2~3 모바일에선 오차가 서브픽셀이라 보이지 않는다. 딱 맞추려면 44px→48px, 20px→16px이 후보. */
   .top h1,.panel h2,.card .h .t,.promo .pm-t,.shareModal-title,     /* 타이틀·헤더 */
   .bigbtn,.rbtns button,.invite,.pm-btn,.shareModal-btn,.likebtn,.sharebtn,  /* 버튼 라벨 */
   .panel .rule-hi,                                                  /* 시작 팝업 핵심 규칙 */
@@ -985,7 +986,7 @@ function renderRQ(){
 //   q1  23톤·3.9톤   = 전 재질 wt 합 23,450.8kg(=23.45톤), 그리고 그걸 6년으로 나눈 3.908톤
 //   q2  480,052개    = 전 재질 cnt 합 / 419,456개·87.4% = plastic의 cnt·pct
 //   q3  8,753개·1.8% = foreign의 cnt·pct
-// 보기 라벨엔 이모지를 넣지 않는다 — 이모지는 Galmuri11에 없어 시스템 이모지로 폴백되는데,
+// 보기 라벨엔 이모지를 넣지 않는다 — 이모지는 Neo둥근모에 없어 시스템 이모지로 폴백되는데,
 // 폰트 블록이 같이 거는 -webkit-font-smoothing:none이 그 폴백 글리프의 AA까지 꺼서 20px에선 계단이 보인다.
 // (13px인 .card .h .t의 📖📊🏆는 같은 이유로 티가 안 날 뿐이다.)
 // 저장·집계 값은 라벨이 아니라 앞의 코드('O'/'X'/'plastic'…)라 라벨을 바꿔도 7c 집계 키는 안 흔들린다.
